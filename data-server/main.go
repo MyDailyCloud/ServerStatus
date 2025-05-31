@@ -362,7 +362,10 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(servers)
+	if err := json.NewEncoder(w).Encode(servers); err != nil {
+		log.Printf("Error encoding servers response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 func handleGetServer(w http.ResponseWriter, r *http.Request) {
@@ -379,7 +382,10 @@ func handleGetServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(server)
+	if err := json.NewEncoder(w).Encode(server); err != nil {
+		log.Printf("Error encoding server response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // 已移除基于项目密钥和访问令牌的处理函数，只保留AccessKey访问方式
@@ -452,7 +458,10 @@ func handleRegisterSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 
 	log.Printf("[Session注册] 成功为主机 %s 分配Session ID: %s", req.Hostname, sessionID)
 }
@@ -482,7 +491,10 @@ func handleGenerateAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // handleGetServersByAccessKey 根据访问密钥获取服务器列表
@@ -541,7 +553,10 @@ func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(servers)
+	if err := json.NewEncoder(w).Encode(servers); err != nil {
+		log.Printf("Error encoding servers response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // handleGetServerByAccessKey 根据访问密钥和主机名获取特定服务器详情
@@ -695,7 +710,10 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	data.uuidCacheMutex.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 func handleDownload(w http.ResponseWriter, r *http.Request) {
@@ -760,7 +778,9 @@ func handleInstallScript(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Disposition", "inline; filename=install-client.sh")
-	w.Write(script)
+	if _, err := w.Write(script); err != nil {
+		log.Printf("Error writing install script: %v", err)
+	}
 
 	log.Printf("安装脚本下载请求来自: %s", r.RemoteAddr)
 }
@@ -862,12 +882,10 @@ func cleanupRoutine() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			data.mu.Lock()
-			now := time.Now()
-			for hostname, server := range data.servers {
+	for range ticker.C {
+		data.mu.Lock()
+		now := time.Now()
+		for hostname, server := range data.servers {
 				if server.Latest != nil && now.Sub(server.Latest.Timestamp) > 10*time.Minute {
 					log.Printf("清理长时间离线的服务器: %s", hostname)
 					delete(data.servers, hostname)
@@ -952,12 +970,7 @@ func validateDualKey(serverKey, projectKey string) bool {
 	return false
 }
 
-// clearAccessKeyCache 清空AccessKey缓存（可用于配置更新时）
-func clearAccessKeyCache() {
-	accessKeyCache.mu.Lock()
-	accessKeyCache.cache = make(map[string]string)
-	accessKeyCache.mu.Unlock()
-}
+
 
 // 已移除getProjectKeyByToken函数，只保留AccessKey相关功能
 

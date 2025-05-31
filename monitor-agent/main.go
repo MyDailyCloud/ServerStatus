@@ -190,11 +190,8 @@ func main() {
 	// 立即发送一次
 	collectAndReport()
 
-	for {
-		select {
-		case <-ticker.C:
-			collectAndReport()
-		}
+	for range ticker.C {
+		collectAndReport()
 	}
 }
 
@@ -663,16 +660,6 @@ func getWindowsGPUInfo() *GPUInfo {
 	}
 
 	return nil
-}
-
-func containsAny(str string, substrings []string) bool {
-	str = strings.ToLower(str)
-	for _, substr := range substrings {
-		if strings.Contains(str, substr) {
-			return true
-		}
-	}
-	return false
 }
 
 // loadConfig 加载配置文件
