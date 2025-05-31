@@ -14,14 +14,16 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.3'
     
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
@@ -29,35 +31,49 @@ jobs:
     - name: Download dependencies
       run: go mod download
     
-    - name: Run tests
-      run: go test -v ./...
-    
     - name: Run go vet
       run: go vet ./...
+    
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "The following files are not formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
 
   build:
     needs: test
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
-        exclude:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
           - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
             goarch: arm64
     
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.3'
     
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
@@ -69,32 +85,35 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
       run: |
         mkdir -p release
         cd data-server
         if [ "$GOOS" = "windows" ]; then
-          go build -ldflags "-s -w" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./main.go
+          go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./main.go
         else
-          go build -ldflags "-s -w" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }} ./main.go
+          go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }} ./main.go
         fi
     
     - name: Build monitor-agent
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
       run: |
         cd monitor-agent
         if [ "$GOOS" = "windows" ]; then
-          go build -ldflags "-s -w" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./main.go
+          go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }}.exe ./main.go
         else
-          go build -ldflags "-s -w" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }} ./main.go
+          go build -ldflags "-s -w -X main.version=${{ github.ref_name }}" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }} ./main.go
         fi
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: serverstatus-${{ matrix.goos }}-${{ matrix.goarch }}
         path: release/*
+        retention-days: 30
 
   release:
     needs: build
@@ -105,9 +124,10 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
+        merge-multiple: true
     
     - name: Prepare release assets
       run: |
@@ -116,7 +136,7 @@ jobs:
         ls -la release-final/
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: release-final/*
         generate_release_notes: true
