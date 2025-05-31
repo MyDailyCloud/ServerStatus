@@ -17,7 +17,11 @@
   Real-time monitoring • Web dashboard • Multi-server support • Enterprise-grade security
 </p>
 
-<img src="https://user-images.githubusercontent.com/placeholder/demo.gif" alt="Demo" width="100%" />
+<p align="center">
+  <strong>English</strong> | <a href="README_zh.md">中文</a>
+</p>
+
+
 
 </div>
 
@@ -62,19 +66,56 @@
 
 ## 🎯 Quick Start
 
-### 📦 Installation
+### 🌐 Option 1: Use Our Hosted Service (Recommended)
 
-**Option 1: Download Pre-built Binaries**
+**🚀 No setup required! Use our hosted ServerStatus service:**
+
+- **Dashboard**: [https://serverstatus.ltd](https://serverstatus.ltd)
+- **API Endpoint**: `https://serverstatus.ltd/api/data`
+
+Simply download the monitoring agent and connect to our service:
 
 ```bash
-# Linux/macOS
+# Download monitoring agent
+# Linux
 curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+
+# macOS
+curl -L https://release.serverstatus.ltd/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
 
 # Windows (PowerShell)
 Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"
+
+# Start monitoring (connect to our hosted service)
+./monitor-agent -url https://serverstatus.ltd/api/data -key your-project-key
 ```
 
-**Option 2: Build from Source**
+**🌐 Access Your Dashboard**: Visit [https://serverstatus.ltd](https://serverstatus.ltd) to view your server status!
+
+---
+
+### 🏠 Option 2: Self-Hosted Deployment
+
+**Download Pre-built Binaries**
+
+```bash
+# Download from GitHub Releases
+# Visit: https://github.com/MyDailyCloud/ServerStatus/releases
+
+# Linux
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux -o data-server && chmod +x data-server
+
+# macOS
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-darwin -o data-server && chmod +x data-server
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent.exe" -OutFile "monitor-agent.exe"
+Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server.exe" -OutFile "data-server.exe"
+```
+
+**Build from Source**
 
 ```bash
 git clone https://github.com/MyDailyCloud/ServerStatus.git
@@ -83,7 +124,7 @@ go build -o release/data-server ./data-server
 go build -o release/monitor-agent ./monitor-agent
 ```
 
-### 🚀 Launch Server
+**Launch Your Own Server**
 
 ```bash
 # Start the data server
@@ -92,14 +133,14 @@ go build -o release/monitor-agent ./monitor-agent
 # Server will be available at http://localhost:8080
 ```
 
-### 📊 Deploy Agent
+**Deploy Agent to Your Server**
 
 ```bash
-# Start monitoring agent
+# Start monitoring agent (connect to your own server)
 ./monitor-agent -url http://localhost:8080/api/data -key your-project-key
 ```
 
-### 🌐 Access Dashboard
+**Access Your Self-Hosted Dashboard**
 
 Open your browser and navigate to: `http://localhost:8080`
 
@@ -245,18 +286,7 @@ GOOS=darwin go build -o release/data-server-darwin ./data-server
 GOOS=windows go build -o release/data-server.exe ./data-server
 ```
 
-### 🧪 Testing
 
-```bash
-# Run tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Benchmark tests
-go test -bench=. ./...
-```
 
 ## 🐛 Troubleshooting
 
@@ -314,7 +344,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=your-username/obscura-gpu-monitor&type=Date)](https://star-history.com/#your-username/obscura-gpu-monitor&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=MyDailyCloud/ServerStatus&type=Date)](https://star-history.com/#your-username/obscura-gpu-monitor&Date)
 
 </div>
 
@@ -322,9 +352,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-[![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-333?style=for-the-badge&logo=github)](https://github.com/your-username/obscura-gpu-monitor/discussions)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/your-invite)
-[![Twitter](https://img.shields.io/badge/Twitter-Follow-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/your-handle)
+[![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-333?style=for-the-badge&logo=github)](https://github.com/MyDailyCloud/ServerStatus/discussions)
+
 
 </div>
 

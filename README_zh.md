@@ -1,29 +1,15 @@
-<div align="center">
+# 🚀 ServerStatus Monitor
 
-# 🚀 Obscura GPU Monitor
+![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge" alt="Platform" />
-  <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge" alt="Status" />
-</p>
+**🔥 轻量级、强大且现代化的GPU和系统监控解决方案 🔥**
 
-<p align="center">
-  <strong>🔥 轻量级、强大且现代化的GPU和系统监控解决方案 🔥</strong>
-</p>
+实时监控 • Web仪表板 • 多服务器支持 • 企业级安全
 
-<p align="center">
-  实时监控 • Web仪表板 • 多服务器支持 • 企业级安全
-</p>
-
-<p align="center">
-  <a href="README.md">English</a> | <strong>中文</strong>
-</p>
-
-<img src="https://user-images.githubusercontent.com/placeholder/demo.gif" alt="演示" width="100%" />
-
-</div>
+[English](README.md) | **中文**
 
 ---
 
@@ -66,28 +52,65 @@
 
 ## 🎯 快速开始
 
-### 📦 安装
+### 🌐 选项1：使用我们的托管服务（推荐）
 
-**选项1：下载预构建二进制文件**
+**🚀 无需设置！直接使用我们的 ServerStatus 托管服务：**
+
+- **仪表板**: [https://serverstatus.ltd](https://serverstatus.ltd)
+- **API 端点**: `https://serverstatus.ltd/api/data`
+
+只需下载监控代理并连接到我们的服务：
 
 ```bash
-# Linux/macOS
+# 下载监控代理
+# Linux
 curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+
+# macOS
+curl -L https://release.serverstatus.ltd/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
 
 # Windows (PowerShell)
 Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"
+
+# 开始监控（连接到我们的托管服务）
+./monitor-agent -url https://serverstatus.ltd/api/data -key your-project-key
 ```
 
-**选项2：从源码构建**
+**🌐 访问您的仪表板**: 访问 [https://serverstatus.ltd](https://serverstatus.ltd) 查看您的服务器状态！
+
+---
+
+### 🏠 选项2：自托管部署
+
+**下载预构建二进制文件**
 
 ```bash
-git clone https://github.com/your-username/obscura-gpu-monitor.git
-cd obscura-gpu-monitor
+# 从GitHub Releases下载
+# 访问：https://github.com/MyDailyCloud/ServerStatus/releases
+
+# Linux
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux -o data-server && chmod +x data-server
+
+# macOS
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-darwin -o data-server && chmod +x data-server
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent.exe" -OutFile "monitor-agent.exe"
+Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server.exe" -OutFile "data-server.exe"
+```
+
+**从源码构建**
+
+```bash
+git clone https://github.com/MyDailyCloud/ServerStatus.git
+cd ServerStatus
 go build -o release/data-server ./data-server
 go build -o release/monitor-agent ./monitor-agent
 ```
 
-### 🚀 启动服务器
+**启动您自己的服务器**
 
 ```bash
 # 启动数据服务器
@@ -96,14 +119,14 @@ go build -o release/monitor-agent ./monitor-agent
 # 服务器将在 http://localhost:8080 可用
 ```
 
-### 📊 部署代理
+**将代理部署到您的服务器**
 
 ```bash
-# 启动监控代理
+# 启动监控代理（连接到您自己的服务器）
 ./monitor-agent -url http://localhost:8080/api/data -key your-project-key
 ```
 
-### 🌐 访问仪表板
+**访问您的自托管仪表板**
 
 打开浏览器并导航到：`http://localhost:8080`
 
@@ -263,11 +286,11 @@ open https://serverstatus.ltd?key=home-server
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/obscura-gpu-monitor.git
-cd obscura-gpu-monitor
+git clone https://github.com/MyDailyCloud/ServerStatus.git
+cd ServerStatus
 
 # 初始化模块
-go mod init obscura-gpu-monitor
+go mod init ServerStatus
 go mod tidy
 
 # 为当前平台构建
@@ -280,18 +303,6 @@ GOOS=darwin go build -o release/data-server-darwin ./data-server
 GOOS=windows go build -o release/data-server.exe ./data-server
 ```
 
-### 🧪 测试
-
-```bash
-# 运行测试
-go test ./...
-
-# 运行覆盖率测试
-go test -cover ./...
-
-# 基准测试
-go test -bench=. ./...
-```
 
 ## 🐛 故障排除
 
@@ -395,7 +406,7 @@ cd "$(dirname "$0")"
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=your-username/obscura-gpu-monitor&type=Date)](https://star-history.com/#your-username/obscura-gpu-monitor&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=MyDailyCloud/ServerStatus&type=Date)](https://star-history.com/#MyDailyCloud/ServerStatus&Date)
 
 </div>
 
@@ -403,9 +414,7 @@ cd "$(dirname "$0")"
 
 <div align="center">
 
-[![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-333?style=for-the-badge&logo=github)](https://github.com/your-username/obscura-gpu-monitor/discussions)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/your-invite)
-[![Twitter](https://img.shields.io/badge/Twitter-Follow-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/your-handle)
+[![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-333?style=for-the-badge&logo=github)](https://github.com/MyDailyCloud/ServerStatus/discussions)
 
 </div>
 
@@ -418,5 +427,3 @@ cd "$(dirname "$0")"
 *如果你觉得这个项目有帮助，请考虑给它一个 ⭐！*
 
 [🚀 开始使用](#-快速开始) • [📖 文档](docs/) • [🐛 报告Bug](issues/) • [💡 请求功能](issues/)
-
-</div>
