@@ -886,13 +886,12 @@ func cleanupRoutine() {
 		data.mu.Lock()
 		now := time.Now()
 		for hostname, server := range data.servers {
-				if server.Latest != nil && now.Sub(server.Latest.Timestamp) > 10*time.Minute {
-					log.Printf("清理长时间离线的服务器: %s", hostname)
-					delete(data.servers, hostname)
-				}
+			if server.Latest != nil && now.Sub(server.Latest.Timestamp) > 10*time.Minute {
+				log.Printf("清理长时间离线的服务器: %s", hostname)
+				delete(data.servers, hostname)
 			}
-			data.mu.Unlock()
 		}
+		data.mu.Unlock()
 	}
 }
 
@@ -969,8 +968,6 @@ func validateDualKey(serverKey, projectKey string) bool {
 
 	return false
 }
-
-
 
 // 已移除getProjectKeyByToken函数，只保留AccessKey相关功能
 
