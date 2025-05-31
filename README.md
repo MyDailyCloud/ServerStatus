@@ -10,31 +10,44 @@
 </p>
 
 <p align="center">
-  <strong>🔥 A lightweight, powerful, and modern server & system monitoring solution 🔥</strong>
+  <strong>🔥 One-Click Install, Start Monitoring Instantly - No Registration Required! 🔥</strong>
 </p>
 
 <p align="center">
-  Real-time monitoring • Web dashboard • Multi-server support • Enterprise-grade security
+  <strong>⚡ 30-Second Setup • 🚫 Zero Configuration • 📊 Real-time Monitoring • 🌐 Web Dashboard</strong>
 </p>
 
 <p align="center">
   <strong>English</strong> | <a href="README_zh.md">中文</a>
 </p>
 
-
-
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🖥️ **Real-time Monitoring**
-- CPU, Memory, Disk, Network usage
+### 🚫 **No Registration Required**
+- Zero barrier to entry
+- No account creation needed
+- No email verification
+- Start monitoring instantly
+
+### ⚡ **One-Click Installation**
+- Single command deployment
+- Auto-configured connection
+- Cross-platform support
+- Zero dependency runtime
+
+</td>
+<td width="50%">
+
+### 📊 **Real-time Monitoring**
+- CPU, Memory, Disk, Network
 - GPU utilization and temperature
 - System information and health
 - Historical data tracking
@@ -46,53 +59,32 @@
 - Dark/Light theme
 
 </td>
-<td width="50%">
-
-### 🔐 **Enterprise Security**
-- Dual-key authentication
-- Project-based access control
-- Token-based API access
-- Secure data transmission
-
-### 🚀 **Easy Deployment**
-- Single binary deployment
-- Cross-platform support
-- Minimal resource usage
-- Docker ready
-
-</td>
 </tr>
 </table>
 
-## 🎯 Quick Start
+## 🎯 30-Second Quick Start - No Registration Required!
 
-### 🌐 Option 1: Use Our Hosted Service (Recommended)
+### 🚀 Option 1: Use Our Hosted Service (Recommended)
 
-**🚀 No setup required! Use our hosted ServerStatus service:**
+**✨ Completely Free! No Registration! No Configuration!**
 
-- **Dashboard**: [https://serverstatus.ltd](https://serverstatus.ltd)
-- **API Endpoint**: `https://serverstatus.ltd/api/data`
-
-Simply download the monitoring agent and connect to our service:
+Just one command to start monitoring instantly:
 
 ```bash
-# Download monitoring agent
-# Linux
-curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+# Linux/macOS - One-click install and start monitoring
+curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent && ./monitor-agent -url https://serverstatus.ltd/api/data -key demo
 
-# macOS
-curl -L https://release.serverstatus.ltd/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"
-
-# Start monitoring (connect to our hosted service)
-./monitor-agent -url https://serverstatus.ltd/api/data -key your-project-key
+# Windows (PowerShell) - One-click install and start monitoring
+Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"; .\monitor-agent.exe -url https://serverstatus.ltd/api/data -key demo
 ```
 
-**🌐 Access Your Dashboard**: Visit [https://serverstatus.ltd](https://serverstatus.ltd) to view your server status!
+**🌐 View Your Monitoring Data Instantly**: Visit [https://serverstatus.ltd?key=demo](https://serverstatus.ltd?key=demo)
+
+**🎉 That's it! No account creation, no complex setup, start monitoring in 30 seconds!**
 
 ---
+
+## 🔧 Additional Deployment Options
 
 ### 🏠 Option 2: Self-Hosted Deployment
 

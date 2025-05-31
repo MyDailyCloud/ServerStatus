@@ -1,26 +1,53 @@
-# 🚀 ServerStatus Monitor
+<div align="center">
 
-![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)
+# 🚀 ServerStatus 监控系统
 
-**🔥 轻量级、强大且现代化的GPU和系统监控解决方案 🔥**
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge" alt="Platform" />
+  <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge" alt="Status" />
+</p>
 
-实时监控 • Web仪表板 • 多服务器支持 • 企业级安全
+<p align="center">
+  <strong>🔥 一键安装，立即开始监控 - 无需注册！🔥</strong>
+</p>
 
-[English](README.md) | **中文**
+<p align="center">
+  <strong>⚡ 30秒部署 • 🚫 零配置 • 📊 实时监控 • 🌐 Web仪表板</strong>
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> | <strong>中文</strong>
+</p>
+
+</div>
 
 ---
 
-## ✨ 功能特性
+## ✨ 核心特性
 
 <table>
 <tr>
 <td width="50%">
 
-### 🖥️ **实时监控**
-- CPU、内存、磁盘、网络使用情况
+### 🚫 **无需注册**
+- 零门槛使用
+- 无需创建账号
+- 无需邮箱验证
+- 立即开始监控
+
+### ⚡ **一键安装**
+- 单条命令部署
+- 自动配置连接
+- 跨平台支持
+- 零依赖运行
+
+</td>
+<td width="50%">
+
+### 📊 **实时监控**
+- CPU、内存、磁盘、网络
 - GPU利用率和温度
 - 系统信息和健康状态
 - 历史数据追踪
@@ -32,55 +59,34 @@
 - 深色/浅色主题
 
 </td>
-<td width="50%">
-
-### 🔐 **企业级安全**
-- 双密钥认证
-- 基于项目的访问控制
-- 基于令牌的API访问
-- 安全数据传输
-
-### 🚀 **易于部署**
-- 单二进制文件部署
-- 跨平台支持
-- 最小资源占用
-- Docker就绪
-
-</td>
 </tr>
 </table>
 
-## 🎯 快速开始
+## 🎯 30秒快速开始 - 无需注册！
 
-### 🌐 选项1：使用我们的托管服务（推荐）
+### 🚀 方式一：使用我们的托管服务（推荐）
 
-**🚀 无需设置！直接使用我们的 ServerStatus 托管服务：**
+**✨ 完全免费！无需注册！无需配置！**
 
-- **仪表板**: [https://serverstatus.ltd](https://serverstatus.ltd)
-- **API 端点**: `https://serverstatus.ltd/api/data`
-
-只需下载监控代理并连接到我们的服务：
+只需一条命令，立即开始监控：
 
 ```bash
-# 下载监控代理
-# Linux
-curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
+# Linux/macOS - 一键安装并开始监控
+curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent && ./monitor-agent -url https://serverstatus.ltd/api/data -key demo
 
-# macOS
-curl -L https://release.serverstatus.ltd/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"
-
-# 开始监控（连接到我们的托管服务）
-./monitor-agent -url https://serverstatus.ltd/api/data -key your-project-key
+# Windows (PowerShell) - 一键安装并开始监控
+Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"; .\monitor-agent.exe -url https://serverstatus.ltd/api/data -key demo
 ```
 
-**🌐 访问您的仪表板**: 访问 [https://serverstatus.ltd](https://serverstatus.ltd) 查看您的服务器状态！
+**🌐 立即查看监控数据**: 访问 [https://serverstatus.ltd?key=demo](https://serverstatus.ltd?key=demo)
+
+**🎉 就是这么简单！无需注册账号，无需复杂配置，30秒内开始监控！**
 
 ---
 
-### 🏠 选项2：自托管部署
+## 🔧 更多部署选项
+
+### 🏠 方式二：自托管部署
 
 **下载预构建二进制文件**
 
