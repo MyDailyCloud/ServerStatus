@@ -119,6 +119,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write  # 创建发布所需的权限
+      packages: write  # 如果需要发布包的话
     
     steps:
     - uses: actions/checkout@v4
