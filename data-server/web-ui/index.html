@@ -109,7 +109,18 @@
                 </div>
             </div>
 
-            <div class="servers-grid" id="servers-grid">
+            <!-- 网格布局控制器 -->
+            <div class="grid-controls" id="grid-controls">
+                <label>显示布局:</label>
+                <div class="grid-size-selector">
+                    <button class="grid-size-btn active" data-grid="auto">自适应</button>
+                    <button class="grid-size-btn" data-grid="grid-3x3">3×3</button>
+                    <button class="grid-size-btn" data-grid="grid-4x4">4×4</button>
+                    <button class="grid-size-btn" data-grid="grid-5x5">5×5</button>
+                </div>
+            </div>
+
+            <div class="servers-grid auto" id="servers-grid">
                 <!-- 服务器卡片将动态生成 -->
             </div>
 

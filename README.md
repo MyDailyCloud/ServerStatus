@@ -25,42 +25,6 @@
 
 ---
 
-## ✨ Core Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 🚫 **No Registration Required**
-- Zero barrier to entry
-- No account creation needed
-- No email verification
-- Start monitoring instantly
-
-### ⚡ **One-Click Installation**
-- Single command deployment
-- Auto-configured connection
-- Cross-platform support
-- Zero dependency runtime
-
-</td>
-<td width="50%">
-
-### 📊 **Real-time Monitoring**
-- CPU, Memory, Disk, Network
-- GPU utilization and temperature
-- System information and health
-- Historical data tracking
-
-### 🌐 **Modern Web Interface**
-- Beautiful, responsive dashboard
-- Real-time charts and graphs
-- Multi-language support
-- Dark/Light theme
-
-</td>
-</tr>
-</table>
 
 ## 🎯 30-Second Quick Start - No Registration Required!
 

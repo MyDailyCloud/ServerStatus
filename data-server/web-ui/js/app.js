@@ -176,6 +176,39 @@ class GPUMonitor {
                 this.hideCharts();
             }
         });
+        
+        // 网格布局切换事件
+        this.setupGridControls();
+    }
+    
+    setupGridControls() {
+        const gridButtons = document.querySelectorAll('.grid-size-btn');
+        const serversGrid = document.getElementById('servers-grid');
+        
+        gridButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 移除所有按钮的active状态
+                gridButtons.forEach(btn => btn.classList.remove('active'));
+                // 添加当前按钮的active状态
+                button.classList.add('active');
+                
+                // 移除网格的所有布局类
+                serversGrid.className = 'servers-grid';
+                // 添加新的布局类
+                const gridType = button.dataset.grid;
+                serversGrid.classList.add(gridType);
+                
+                // 保存用户选择到localStorage
+                localStorage.setItem('gridLayout', gridType);
+            });
+        });
+        
+        // 从localStorage恢复用户选择的布局
+        const savedLayout = localStorage.getItem('gridLayout') || 'auto';
+        const savedButton = document.querySelector(`[data-grid="${savedLayout}"]`);
+        if (savedButton) {
+            savedButton.click();
+        }
     }
 
     startPolling() {

@@ -62,25 +62,42 @@
 </tr>
 </table>
 
-## 🎯 30秒快速开始 - 无需注册！
+## 🚀 30秒快速开始 - 无需注册！
 
-### 🚀 方式一：使用我们的托管服务（推荐）
+### 🎯 方式一：一键安装
+**零配置要求！** 只需运行一条命令：
 
-**✨ 完全免费！无需注册！无需配置！**
-
-只需一条命令，立即开始监控：
-
+**Linux/macOS:**
 ```bash
-# Linux/macOS - 一键安装并开始监控
-curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent && ./monitor-agent -url https://serverstatus.ltd/api/data -key demo
-
-# Windows (PowerShell) - 一键安装并开始监控
-Invoke-WebRequest -Uri "https://release.serverstatus.ltd/monitor-agent.exe" -OutFile "monitor-agent.exe"; .\monitor-agent.exe -url https://serverstatus.ltd/api/data -key demo
+curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.sh | bash
 ```
 
-**🌐 立即查看监控数据**: 访问 [https://serverstatus.ltd?key=demo](https://serverstatus.ltd?key=demo)
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.ps1 | iex
+```
 
-**🎉 就是这么简单！无需注册账号，无需复杂配置，30秒内开始监控！**
+**Windows (命令提示符):**
+```cmd
+curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.bat -o install.bat && install.bat
+```
+
+✅ **就是这样！** 您的服务器监控立即开始！
+
+### 🌐 方式二：使用托管服务
+**使用我们的托管服务** - 无需安装：
+
+**Linux/macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/monitor-agent | bash
+```
+
+**Windows:**
+```powershell
+iwr -useb https://raw.githubusercontent.com/kanshan/ServerStatus/main/monitor-agent.ps1 | iex
+```
+
+✅ 在 https://status.example.com 访问您的仪表板
 
 ---
 
