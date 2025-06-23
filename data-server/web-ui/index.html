@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServerStatus Monitor - 服务器性能监控</title>
+    <title>ServerStatus Monitor</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
@@ -12,6 +12,35 @@
         <header>
             <div class="header-top">
                 <h1>🖥️ ServerStatus Monitor</h1>
+                <div class="controls">
+                    <div class="alerts-switch">
+                        <button id="alerts-toggle" class="alerts-btn" title="Toggle alerts">
+                            <svg id="alerts-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                            </svg>
+                            <span id="alert-count" class="alert-count">0</span>
+                        </button>
+                    </div>
+                    <div class="theme-switch">
+                        <button id="theme-toggle" class="theme-btn" title="Toggle theme">
+                            <svg id="theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 18c-.89 0-1.74-.19-2.5-.54C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.46C10.26 6.19 11.11 6 12 6c3.31 0 6 2.69 6 6s-2.69 6-6 6z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="help-switch">
+                        <button id="help-toggle" class="help-btn" title="Keyboard shortcuts">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C7.59,4 4,12A10,10 0 0,0 12,2Z"/>
+                                <path d="M12,6A4,4 0 0,1 16,10C16,12 14,11.5 14,15H10V14.5C10,13.5 10.5,12.5 11.5,11.5C12.5,10.5 13,10 13,9A1,1 0 0,0 12,8A1,1 0 0,0 11,9H9A3,3 0 0,1 12,6Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="language-switch">
+                        <button id="lang-zh" class="lang-btn">中文</button>
+                        <button id="lang-en" class="lang-btn active">English</button>
+                    </div>
+                </div>
                 <a href="https://github.com/MyDailyCloud/ServerStatus" target="_blank" class="github-link">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
@@ -20,36 +49,36 @@
                 </a>
             </div>
             <div class="status-indicator">
-                <span id="connection-status" class="status offline">离线</span>
-                <span id="server-count">0 台服务器</span>
+                <span id="connection-status" class="status offline">Offline</span>
+                <span id="server-count">0 servers</span>
                 <span id="uuid-count">0 UUID devices</span>
             </div>
         </header>
 
         <main>
-            <!-- 教程部分 -->
+            <!-- Tutorial Section -->
             <div class="tutorial-section" id="tutorial-section">
                 <div class="tutorial-card">
-                    <h2>📚 快速开始</h2>
+                    <h2 id="tutorial-title">📚 Quick Start</h2>
                     <div class="tutorial-content">
-                        <h3>🚀 一键安装监控代理</h3>
+                        <h3 id="one-click-title">🚀 One-Click Install Monitor Agent</h3>
                         <div class="command-box">
                             <code id="one-click-command">curl -L https://release.serverstatus.ltd/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent && ./monitor-agent -key public</code>
-                            <button class="copy-btn" onclick="copyCommand(this)">复制</button>
+                            <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
                         </div>
                         
-                        <h3>📋 分步骤安装</h3>
+                        <h3 id="step-by-step-title">📋 Step-by-Step Installation</h3>
                         <div class="download-selector">
-                            <h4>选择您的系统和架构：</h4>
+                            <h4 id="select-system-title">Select your system and architecture:</h4>
                             <div class="selector-group">
-                                <label for="os-select">操作系统：</label>
+                                <label for="os-select" id="os-label">Operating System:</label>
                                 <select id="os-select" onchange="updateDownloadCommands()">
                                     <option value="linux">Linux</option>
                                     <option value="darwin">macOS</option>
                                     <option value="windows">Windows</option>
                                 </select>
                                 
-                                <label for="arch-select">架构：</label>
+                                <label for="arch-select" id="arch-label">Architecture:</label>
                                 <select id="arch-select" onchange="updateDownloadCommands()">
                                     <option value="amd64">x86_64 (AMD64)</option>
                                     <option value="arm64">ARM64</option>
@@ -60,108 +89,310 @@
                             <div class="step">
                                 <span class="step-number">1</span>
                                 <div class="step-content">
-                                    <strong>下载代理程序</strong>
+                                    <strong id="download-agent-title">Download Agent</strong>
                                     <div class="command-box">
                                         <code id="download-command">wget https://release.serverstatus.ltd/monitor-agent-linux -O monitor-agent</code>
-                                        <button class="copy-btn" onclick="copyCommand(this)">复制</button>
+                                        <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="step">
                                 <span class="step-number">2</span>
                                 <div class="step-content">
-                                    <strong>设置执行权限</strong>
+                                    <strong id="set-permissions-title">Set Execute Permissions</strong>
                                     <div class="command-box">
                                         <code>chmod +x monitor-agent</code>
-                                        <button class="copy-btn" onclick="copyCommand(this)">复制</button>
+                                        <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="step">
                                 <span class="step-number">3</span>
                                 <div class="step-content">
-                                    <strong>运行程序</strong>
+                                    <strong id="run-program-title">Run Program</strong>
                                     <div class="command-box">
                                         <code id="run-command">./monitor-agent -key public</code>
-                                        <button class="copy-btn" onclick="copyCommand(this)">复制</button>
+                                        <button class="copy-btn" onclick="copyCommand(this)">Copy</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="tips">
-                            <h3>💡 使用提示</h3>
+                            <h3 id="usage-tips-title">💡 Usage Tips</h3>
                             <div class="tip">
-                                <strong>显示在公共面板：</strong>使用 <code>-key public</code> 参数让服务器显示在此公共面板
+                                <strong id="public-panel-tip">Show on Public Panel:</strong><span id="public-panel-desc"> Use <code>-key public</code> parameter to display server on this public panel</span>
                             </div>
                             <div class="tip">
-                                <strong>后台运行：</strong>可以使用 <code>screen</code> 或 <code>tmux</code> 等工具将程序放在后台运行
+                                <strong id="background-run-tip">Run in Background:</strong><span id="background-run-desc"> Use tools like <code>screen</code> or <code>tmux</code> to run the program in the background</span>
                             </div>
                             <div class="tip">
-                                <strong>停止监控：</strong><code>pkill monitor-agent</code>
+                                <strong id="network-monitor-tip">Network Monitoring:</strong><span id="network-monitor-desc"> Real-time network speed and traffic monitoring with visual indicators</span>
                             </div>
                             <div class="tip">
-                                <strong>检查运行状态：</strong><code>ps aux | grep monitor-agent</code>
+                                <strong id="stop-monitor-tip">Stop Monitor:</strong><span id="stop-monitor-desc"> <code>pkill monitor-agent</code></span>
+                            </div>
+                            <div class="tip">
+                                <strong id="check-status-tip">Check Running Status:</strong><span id="check-status-desc"> <code>ps aux | grep monitor-agent</code></span>
                             </div>
                         </div>
                     </div>
-                    <button class="toggle-tutorial" onclick="toggleTutorial()">收起教程</button>
+                    <button class="toggle-tutorial" onclick="toggleTutorial()" id="toggle-tutorial-btn">Hide Tutorial</button>
                 </div>
             </div>
 
-            <!-- 网格布局控制器 -->
+            <!-- Search and Filter Controls -->
+            <div class="search-controls">
+                <div class="search-box">
+                    <input type="text" id="server-search" placeholder="Search servers..." />
+                    <button id="search-clear" class="clear-btn">×</button>
+                </div>
+                <div class="filter-controls">
+                    <select id="group-filter">
+                        <option value="all">All Groups</option>
+                        <option value="ungrouped">Ungrouped</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="all">All Status</option>
+                        <option value="online">Online Only</option>
+                        <option value="offline">Offline Only</option>
+                    </select>
+                    <select id="sort-by">
+                        <option value="hostname">Sort by Name</option>
+                        <option value="group">Sort by Group</option>
+                        <option value="cpu">Sort by CPU</option>
+                        <option value="memory">Sort by Memory</option>
+                        <option value="disk">Sort by Disk</option>
+                        <option value="temperature">Sort by Temperature</option>
+                    </select>
+                    <button id="manage-groups-btn" class="manage-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                        <span id="manage-groups-text">Groups</span>
+                    </button>
+                    <div class="action-controls">
+                        <div class="export-controls">
+                            <button id="export-btn" class="export-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                <span id="export-text">Export</span>
+                            </button>
+                            <div id="export-menu" class="export-menu">
+                                <button id="export-csv" data-format="csv">Export as CSV</button>
+                                <button id="export-json" data-format="json">Export as JSON</button>
+                                <button id="export-pdf" data-format="pdf">Export as PDF</button>
+                            </div>
+                        </div>
+                        <button id="view-toggle" class="view-btn" title="Toggle view mode">
+                            <svg id="view-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3,5H9V11H3V5M5,7V9H7V7H5M11,7H21V9H11V7M11,15H21V17H11V15M5,20V18H7V20H5M3,17H9V23H3V17M11,11H21V13H11V11Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Grid Layout Controls -->
             <div class="grid-controls" id="grid-controls">
-                <label>显示布局:</label>
+                <label id="display-layout-label">Display Layout:</label>
                 <div class="grid-size-selector">
-                    <button class="grid-size-btn active" data-grid="auto">自适应</button>
+                    <button class="grid-size-btn active" data-grid="auto" id="auto-grid-btn">Auto</button>
                     <button class="grid-size-btn" data-grid="grid-3x3">3×3</button>
                     <button class="grid-size-btn" data-grid="grid-4x4">4×4</button>
                     <button class="grid-size-btn" data-grid="grid-5x5">5×5</button>
                 </div>
             </div>
 
+            <!-- Performance Statistics Panel -->
+            <div class="stats-panel" id="stats-panel">
+                <div class="stats-header">
+                    <h3 id="stats-title">Performance Overview</h3>
+                    <button id="toggle-stats" class="toggle-btn">Hide</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label" id="avg-cpu-label">Avg CPU</div>
+                        <div class="stat-value" id="avg-cpu">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="avg-memory-label">Avg Memory</div>
+                        <div class="stat-value" id="avg-memory">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="avg-disk-label">Avg Disk</div>
+                        <div class="stat-value" id="avg-disk">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="high-usage-label">High Usage</div>
+                        <div class="stat-value" id="high-usage">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="total-load-label">Total Load</div>
+                        <div class="stat-value" id="total-load">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="critical-alerts-label">Critical</div>
+                        <div class="stat-value critical" id="critical-count">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="avg-network-sent-label">Avg Send</div>
+                        <div class="stat-value" id="avg-network-sent">0 KB/s</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="avg-network-recv-label">Avg Recv</div>
+                        <div class="stat-value" id="avg-network-recv">0 KB/s</div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="servers-grid auto" id="servers-grid">
-                <!-- 服务器卡片将动态生成 -->
+                <!-- Server cards will be dynamically generated -->
             </div>
 
             <div class="charts-section" id="charts-section" style="display: none;">
                 <div class="chart-header">
-                    <h2 id="selected-server-name">服务器详情</h2>
+                    <h2 id="selected-server-name">Server Details</h2>
                     <button id="close-charts" class="btn-close">×</button>
                 </div>
                 <div class="charts-grid">
                     <div class="chart-container">
-                        <h3>CPU 使用率</h3>
+                        <h3 id="cpu-usage-title">CPU Usage</h3>
                         <canvas id="cpu-chart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>内存使用率</h3>
+                        <h3 id="memory-usage-title">Memory Usage</h3>
                         <canvas id="memory-chart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>磁盘使用率</h3>
+                        <h3 id="disk-usage-title">Disk Usage</h3>
                         <canvas id="disk-chart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>温度监控</h3>
+                        <h3 id="temperature-title">Temperature Monitor</h3>
                         <canvas id="temp-chart"></canvas>
                     </div>
+                    <div class="chart-container">
+                        <h3 id="network-speed-title">Network Speed</h3>
+                        <canvas id="network-speed-chart"></canvas>
+                    </div>
                     <div class="chart-container" id="gpu-usage-container" style="display: none;">
-                        <h3>GPU 使用率</h3>
+                        <h3 id="gpu-usage-title">GPU Usage</h3>
                         <canvas id="gpu-usage-chart"></canvas>
                     </div>
                     <div class="chart-container" id="gpu-memory-container" style="display: none;">
-                        <h3>GPU 显存使用率</h3>
+                        <h3 id="gpu-memory-title">GPU Memory Usage</h3>
                         <canvas id="gpu-memory-chart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>系统信息</h3>
+                        <h3 id="system-info-title">System Information</h3>
                         <div id="system-info" class="system-info">
-                            <!-- 系统信息将动态填充 -->
+                            <!-- System information will be dynamically populated -->
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Alerts Panel -->
+            <div class="alerts-panel" id="alerts-panel" style="display: none;">
+                <div class="alerts-header">
+                    <h3 id="alerts-title">System Alerts</h3>
+                    <div class="alerts-actions">
+                        <button id="clear-alerts" class="clear-btn">Clear All</button>
+                        <button id="close-alerts" class="close-btn">×</button>
+                    </div>
+                </div>
+                <div class="alerts-content" id="alerts-content">
+                    <div class="no-alerts" id="no-alerts">No alerts at this time</div>
+                </div>
+            </div>
+            
+            <!-- Group Management Modal -->
+            <div id="group-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="group-modal-title">Server Groups Management</h3>
+                        <button id="close-group-modal" class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="group-creation">
+                            <h4 id="create-group-title">Create New Group</h4>
+                            <form id="group-form">
+                                <div class="form-row">
+                                    <input type="text" id="group-name" placeholder="Group name" required />
+                                    <select id="group-type">
+                                        <option value="environment">Environment</option>
+                                        <option value="location">Location</option>
+                                        <option value="project">Project</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <input type="text" id="group-description" placeholder="Description (optional)" />
+                                    <input type="color" id="group-color" value="#667eea" title="Group color" />
+                                </div>
+                                <button type="submit" id="create-group-btn">Create Group</button>
+                            </form>
+                        </div>
+                        
+                        <div class="groups-list">
+                            <h4 id="existing-groups-title">Existing Groups</h4>
+                            <div id="groups-container">
+                                <div class="no-groups" id="no-groups">No groups created yet</div>
+                            </div>
+                        </div>
+                        
+                        <div class="server-assignment">
+                            <h4 id="assign-servers-title">Assign Servers to Groups</h4>
+                            <div class="assignment-controls">
+                                <select id="assignment-group">
+                                    <option value="">Select a group...</option>
+                                </select>
+                                <button id="bulk-assign-btn">Bulk Assign</button>
+                            </div>
+                            <div class="servers-assignment-list" id="servers-assignment-list">
+                                <!-- Servers list will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="group-import-export">
+                            <h4 id="import-export-title">Import/Export Groups</h4>
+                            <div class="import-export-controls">
+                                <div class="export-section">
+                                    <button id="export-groups-btn" class="group-btn">Export Groups</button>
+                                    <span class="help-text" id="export-help-text">Export all groups and assignments as JSON</span>
+                                </div>
+                                <div class="import-section">
+                                    <input type="file" id="import-groups-file" accept=".json" style="display: none;">
+                                    <button id="import-groups-btn" class="group-btn">Import Groups</button>
+                                    <span class="help-text" id="import-help-text">Import groups from JSON file</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Server Context Menu -->
+            <div id="server-context-menu" class="context-menu" style="display: none;">
+                <div class="context-item" id="assign-to-group">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,5A2,2 0 0,1 14,7A2,2 0 0,1 12,9A2,2 0 0,1 10,7A2,2 0 0,1 12,5M12,2A5,5 0 0,1 17,7A5,5 0 0,1 12,12A5,5 0 0,1 7,7A5,5 0 0,1 12,2M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                    </svg>
+                    <span>Assign to Group</span>
+                    <div class="submenu" id="group-submenu"></div>
+                </div>
+                <div class="context-item" id="remove-from-group">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M14.5,9L12,11.5L9.5,9L8,10.5L10.5,13L8,15.5L9.5,17L12,14.5L14.5,17L16,15.5L13.5,13L16,10.5L14.5,9Z"/>
+                    </svg>
+                    <span>Remove from Group</span>
+                </div>
+            </div>
+            
+            <!-- Notification Container -->
+            <div id="notifications-container" class="notifications-container"></div>
         </main>
     </div>
 

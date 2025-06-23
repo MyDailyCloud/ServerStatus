@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -19,7 +20,7 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/shirou/gopsutil/v3/net"
+	psnet "github.com/shirou/gopsutil/v3/net"
 )
 
 type SystemInfo struct {
@@ -58,8 +59,26 @@ type DiskInfo struct {
 }
 
 type NetInfo struct {
-	BytesSent uint64 `json:"bytes_sent"`
-	BytesRecv uint64 `json:"bytes_recv"`
+	BytesSent    uint64        `json:"bytes_sent"`     // 总发送字节数
+	BytesRecv    uint64        `json:"bytes_recv"`     // 总接收字节数
+	PacketsSent  uint64        `json:"packets_sent"`   // 总发送包数
+	PacketsRecv  uint64        `json:"packets_recv"`   // 总接收包数
+	SpeedSent    float64       `json:"speed_sent"`     // 发送速率 (KB/s)
+	SpeedRecv    float64       `json:"speed_recv"`     // 接收速率 (KB/s)
+	Interfaces   []NetInterface `json:"interfaces"`     // 网卡详细信息
+}
+
+type NetInterface struct {
+	Name        string   `json:"name"`         // 网卡名称
+	BytesSent   uint64   `json:"bytes_sent"`   // 发送字节数
+	BytesRecv   uint64   `json:"bytes_recv"`   // 接收字节数
+	PacketsSent uint64   `json:"packets_sent"` // 发送包数
+	PacketsRecv uint64   `json:"packets_recv"` // 接收包数
+	SpeedSent   float64  `json:"speed_sent"`   // 发送速率 (KB/s)
+	SpeedRecv   float64  `json:"speed_recv"`   // 接收速率 (KB/s)
+	IsUp        bool     `json:"is_up"`        // 网卡状态
+	MTU         int      `json:"mtu"`          // MTU
+	Addrs       []string `json:"addrs"`        // IP地址列表
 }
 
 type GPUInfo struct {
@@ -104,6 +123,10 @@ var (
 		Timeout:        10 * time.Second,
 	}
 	sessionID string // 全局session ID
+	
+	// 网络速率计算相关
+	lastNetworkStats map[string]psnet.IOCountersStat
+	lastStatsTime    time.Time
 )
 
 // SessionRegisterRequest session注册请求结构
@@ -316,11 +339,7 @@ func collectSystemInfo() (*SystemInfo, error) {
 	}
 
 	// 网络信息
-	netStat, err := net.IOCounters(false)
-	if err == nil && len(netStat) > 0 {
-		info.Network.BytesSent = netStat[0].BytesSent
-		info.Network.BytesRecv = netStat[0].BytesRecv
-	}
+	info.Network = collectNetworkInfo()
 
 	// GPU信息
 	gpuInfos := collectGPUInfo()
@@ -776,12 +795,19 @@ func printUsage() {
 	fmt.Println(`    "timeout": "10s"`)
 	fmt.Println(`  }`)
 	fmt.Println()
-	fmt.Println("双密钥认证说明 | Dual-key authentication description:")
-	fmt.Println("  系统要求同时提供服务器密钥(Server Key)和项目密钥(Project Key) | System requires both Server Key and Project Key")
-	fmt.Println("  • 服务器密钥用于服务器认证和访问控制 | Server key for server authentication and access control")
-	fmt.Println("  • 项目监控面板 | Project monitoring panel: http://server/?key=project-key")
-	fmt.Println("  • 访问令牌链接 | Access token link: http://server/?token=generated-token")
-	fmt.Println("  • 访问密钥链接 | Access key link: http://server/?access=generated-access-key")
+	fmt.Println("前后端分离架构说明 | Frontend-Backend Separation Architecture:")
+	fmt.Println("  系统采用前后端分离设计，支持多种前端技术栈 | System uses frontend-backend separation, supports multiple frontend frameworks")
+	fmt.Println("  • API服务器 | API Server: 提供RESTful API接口 | Provides RESTful API interfaces")
+	fmt.Println("  • 前端UI | Frontend UI: 独立部署的Web界面 | Independently deployed web interface")
+	fmt.Println("  • 访问方式 | Access Methods:")
+	fmt.Println("    - 公开模式 | Public Mode: 无需认证，显示public项目数据")
+	fmt.Println("    - 项目密钥 | Project Key: 基于项目密钥的数据隔离")
+	fmt.Println("    - 访问密钥 | Access Key: 双密钥认证生成的安全访问密钥")
+	fmt.Println("")
+	fmt.Println("前端部署 | Frontend Deployment:")
+	fmt.Println("  1. 官方UI | Official UI: cd frontend-ui && ./deploy.sh")
+	fmt.Println("  2. 自定义开发 | Custom Development: 基于API开发任意前端界面")
+	fmt.Println("  3. 第三方集成 | Third-party Integration: React/Vue/Angular等框架")
 	fmt.Println()
 	fmt.Println("安全提示 | Security tips:")
 	fmt.Println("  • 主密钥应由管理员统一管理 | Master key should be managed by administrators")
@@ -789,12 +815,8 @@ func printUsage() {
 	fmt.Println("  • 不同团队使用不同的团队密钥 | Different teams should use different team keys")
 }
 
-// generateAccessLinks 生成并显示访问链接
+// generateAccessLinks 生成并显示访问信息（前后端分离版本）
 func generateAccessLinks() {
-	if config.ProjectKey == "" || config.ServerKey == "" {
-		return
-	}
-
 	// 从上报URL提取服务器地址
 	serverBaseURL := extractServerBaseURL(config.ServerURL)
 	if serverBaseURL == "" {
@@ -803,39 +825,69 @@ func generateAccessLinks() {
 	}
 
 	log.Println("")
-	log.Println("=== 🌐 访问链接 ===")
+	log.Println("=== 🌐 监控访问信息 | Monitoring Access Info ===")
+	
+	// 显示API服务器信息
+	log.Printf("📡 API服务器 | API Server: %s", serverBaseURL)
+	log.Printf("📄 API文档 | API Documentation: %s/API.md", serverBaseURL)
 
-	// 项目密钥直接访问链接
-	projectKeyURL := fmt.Sprintf("%s/?key=%s", serverBaseURL, config.ProjectKey)
-	log.Printf("📊 项目监控面板 | Project monitoring panel: %s", projectKeyURL)
-
-	// 尝试生成访问令牌链接
-	if token := generateTokenLink(serverBaseURL); token != "" {
-		tokenURL := fmt.Sprintf("%s/?token=%s", serverBaseURL, token)
-		log.Printf("🔑 访问令牌链接 | Access token link: %s", tokenURL)
+	// 如果是公开模式
+	if config.ProjectKey == "public" || config.ProjectKey == "demo" {
+		log.Println("")
+		log.Println("🔓 公开模式 | Public Mode:")
+		log.Printf("   ✅ 项目密钥 | Project Key: %s", config.ProjectKey)
+		log.Println("   📊 数据将在公开面板中显示 | Data will be shown in public panel")
+		log.Println("")
+		log.Println("📱 前端访问 | Frontend Access:")
+		log.Println("   1. 部署前端UI | Deploy Frontend UI:")
+		log.Println("      cd frontend-ui && ./deploy.sh")
+		log.Println("   2. 或访问在线演示 | Or visit online demo:")
+		log.Println("      https://serverstatus.ltd (if available)")
+		return
 	}
 
-	// 生成访问密钥链接
-	if accessKey := generateAccessKey(serverBaseURL); accessKey != "" {
-		accessURL := fmt.Sprintf("%s/?access=%s", serverBaseURL, accessKey)
-		log.Printf("🔐 访问密钥链接 | Access key link: %s", accessURL)
+	// 如果启用双密钥认证
+	if config.ProjectKey != "" && config.ServerKey != "" {
+		log.Println("")
+		log.Println("🔐 双密钥认证模式 | Dual-Key Authentication Mode:")
+		log.Printf("   ✅ 服务器密钥 | Server Key: %s...", config.ServerKey[:min(8, len(config.ServerKey))])
+		log.Printf("   ✅ 项目密钥 | Project Key: %s", config.ProjectKey)
+
+		// 生成访问密钥
+		if accessKey := generateAccessKey(serverBaseURL); accessKey != "" {
+			log.Println("")
+			log.Println("🔑 访问密钥 | Access Key:")
+			log.Printf("   %s", accessKey)
+			log.Println("")
+			log.Println("📱 使用步骤 | Usage Steps:")
+			log.Println("   1. 复制上述访问密钥 | Copy the access key above")
+			log.Println("   2. 部署前端UI | Deploy Frontend UI:")
+			log.Println("      cd frontend-ui && ./deploy.sh") 
+			log.Println("   3. 在前端页面输入访问密钥 | Enter access key in frontend")
+			log.Println("      或在URL中使用 | Or use in URL: ?key=<access-key>")
+		}
+	} else if config.ProjectKey != "" {
+		log.Println("")
+		log.Println("🔓 项目密钥模式 | Project Key Mode:")
+		log.Printf("   ✅ 项目密钥 | Project Key: %s", config.ProjectKey)
+		log.Println("")
+		log.Println("📱 使用步骤 | Usage Steps:")
+		log.Println("   1. 部署前端UI | Deploy Frontend UI:")
+		log.Println("      cd frontend-ui && ./deploy.sh")
+		log.Println("   2. 在前端页面输入项目密钥 | Enter project key in frontend")
+		log.Println("      或在URL中使用 | Or use in URL: ?key=<project-key>")
 	}
 
 	log.Println("")
-	log.Println("💡 双密钥认证已启用 | Dual-key authentication enabled:")
-	log.Printf("   ✅ 服务器密钥 | Server key: %s...", config.ServerKey[:min(8, len(config.ServerKey))])
-	log.Printf("   ✅ 项目密钥 | Project key: %s", config.ProjectKey)
-	log.Println("   ✅ 访问密钥已自动生成 | Access key auto-generated")
-
-	// 双密钥认证提示
+	log.Println("🛠️  API开发 | API Development:")
+	log.Printf("   📖 查看API文档 | View API docs: %s/API.md", serverBaseURL)
+	log.Printf("   🔌 获取服务器列表 | Get servers: %s/api/servers", serverBaseURL)
+	if config.ProjectKey != "" && config.ServerKey != "" {
+		log.Printf("   🔑 生成访问密钥 | Generate access key: %s/api/generate-access-key", serverBaseURL)
+	}
+	
 	log.Println("")
-	log.Println("💡 双密钥认证使用方法 | Dual-key authentication usage:")
-	log.Printf("   1. 生成访问密钥 | Generate access key: curl -X POST %s/api/generate-access-key \\", serverBaseURL)
-	log.Printf("      -H 'Content-Type: application/json' \\")
-	log.Printf("      -d '{\"server_key\": \"your-server-key\", \"project_key\": \"%s\"}'  ", config.ProjectKey)
-	log.Printf("   2. 使用访问密钥 | Use access key: %s/?access=your-access-key", serverBaseURL)
-	log.Println("")
-	log.Println("====================")
+	log.Println("=======================================")
 	log.Println("")
 }
 
@@ -932,6 +984,93 @@ func generateAccessKey(serverBaseURL string) string {
 	}
 
 	return accessKeyResponse.AccessKey
+}
+
+// collectNetworkInfo 收集详细的网络信息
+func collectNetworkInfo() NetInfo {
+	var netInfo NetInfo
+	currentTime := time.Now()
+	
+	// 获取总的网络统计信息
+	allStats, err := psnet.IOCounters(false)
+	if err == nil && len(allStats) > 0 {
+		netInfo.BytesSent = allStats[0].BytesSent
+		netInfo.BytesRecv = allStats[0].BytesRecv
+		netInfo.PacketsSent = allStats[0].PacketsSent
+		netInfo.PacketsRecv = allStats[0].PacketsRecv
+	}
+	
+	// 获取各个网卡的详细信息
+	perInterfaceStats, err := psnet.IOCounters(true)
+	if err == nil {
+		// 初始化lastNetworkStats映射
+		if lastNetworkStats == nil {
+			lastNetworkStats = make(map[string]psnet.IOCountersStat)
+		}
+		
+		for _, stat := range perInterfaceStats {
+			// 跳过回环接口和无流量的接口
+			if stat.Name == "lo" || stat.Name == "Loopback" ||
+				(stat.BytesSent == 0 && stat.BytesRecv == 0) {
+				continue
+			}
+			
+			netInterface := NetInterface{
+				Name:        stat.Name,
+				BytesSent:   stat.BytesSent,
+				BytesRecv:   stat.BytesRecv,
+				PacketsSent: stat.PacketsSent,
+				PacketsRecv: stat.PacketsRecv,
+				IsUp:        true, // gopsutil不直接提供状态，默认为true
+			}
+			
+			// 计算网速（如果有之前的数据）
+			if lastStat, exists := lastNetworkStats[stat.Name]; exists && !lastStatsTime.IsZero() {
+				timeDiff := currentTime.Sub(lastStatsTime).Seconds()
+				if timeDiff > 0 {
+					bytesSentDiff := stat.BytesSent - lastStat.BytesSent
+					bytesRecvDiff := stat.BytesRecv - lastStat.BytesRecv
+					
+					// 计算速率 (KB/s)
+					netInterface.SpeedSent = float64(bytesSentDiff) / timeDiff / 1024
+					netInterface.SpeedRecv = float64(bytesRecvDiff) / timeDiff / 1024
+					
+					// 累加到总速率
+					netInfo.SpeedSent += netInterface.SpeedSent
+					netInfo.SpeedRecv += netInterface.SpeedRecv
+				}
+			}
+			
+			// 获取IP地址和其他接口信息
+			interfaces, err := net.Interfaces()
+			if err == nil {
+				for _, iface := range interfaces {
+					if iface.Name == stat.Name {
+						netInterface.MTU = iface.MTU
+						
+						// 获取IP地址
+						addrs, err := iface.Addrs()
+						if err == nil {
+							for _, addr := range addrs {
+								netInterface.Addrs = append(netInterface.Addrs, addr.String())
+							}
+						}
+						break
+					}
+				}
+			}
+			
+			netInfo.Interfaces = append(netInfo.Interfaces, netInterface)
+			
+			// 更新缓存
+			lastNetworkStats[stat.Name] = stat
+		}
+	}
+	
+	// 更新时间戳
+	lastStatsTime = currentTime
+	
+	return netInfo
 }
 
 // min 返回两个整数中的较小值

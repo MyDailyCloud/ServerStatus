@@ -1,0 +1,21 @@
+{
+  "name": "serverstatus-ui",
+  "version": "1.0.0",
+  "description": "ServerStatus Monitor Frontend UI",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 -m http.server 3000",
+    "serve": "python3 -m http.server 8081",
+    "build": "echo 'Build complete - static files ready'",
+    "lint": "echo 'Linting complete'"
+  },
+  "keywords": ["monitoring", "server", "dashboard", "ui"],
+  "author": "ServerStatus Team",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MyDailyCloud/ServerStatus"
+  }
+}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServerStatus Quick Start</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        .quick-access {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #007bff;
+        }
+        .config-form {
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .examples {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .examples h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .examples ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .examples li {
+            margin-bottom: 8px;
+        }
+        .code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 ServerStatus Monitor</h1>
+            <p>前后端分离架构 - 快速配置向导</p>
+        </div>
+
+        <div class="quick-access">
+            <h3>⚡ 快速访问</h3>
+            <p>如果你的API服务器运行在本地8080端口，可以直接点击下面的链接：</p>
+            <a href="index.html?api=http://localhost:8080" class="btn btn-success">
+                🌐 访问公开面板 (localhost:8080)
+            </a>
+        </div>
+
+        <div class="config-form">
+            <h3>🔧 自定义配置</h3>
+            <div class="form-group">
+                <label for="apiUrl">API服务器地址:</label>
+                <input type="text" id="apiUrl" placeholder="http://localhost:8080" value="http://localhost:8080">
+            </div>
+            
+            <div class="form-group">
+                <label for="accessKey">访问密钥 (可选):</label>
+                <input type="text" id="accessKey" placeholder="输入访问密钥，留空为公开模式">
+            </div>
+
+            <button onclick="testConnection()" class="btn">🔍 测试连接</button>
+            <button onclick="openPanel()" class="btn btn-success">🚀 打开监控面板</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="examples">
+            <h3>📚 使用示例</h3>
+            <ul>
+                <li><strong>公开模式：</strong> 直接访问，显示所有 <span class="code">project_key="public"</span> 的服务器</li>
+                <li><strong>项目密钥：</strong> URL参数 <span class="code">?key=your-project-key</span></li>
+                <li><strong>访问密钥：</strong> URL参数 <span class="code">?key=your-access-key</span></li>
+                <li><strong>自定义API：</strong> URL参数 <span class="code">?api=http://your-server:8080</span></li>
+            </ul>
+            
+            <h3>🛠️ 部署说明</h3>
+            <ul>
+                <li>后端API服务器：<span class="code">./data-server -port 8080</span></li>
+                <li>前端开发服务器：<span class="code">python3 -m http.server 3000</span></li>
+                <li>监控代理：<span class="code">./monitor-agent -key public</span></li>
+                <li>生产部署：<span class="code">./deploy.sh</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function testConnection() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const statusDiv = document.getElementById('status');
+            
+            if (!apiUrl) {
+                showStatus('请输入API服务器地址', 'error');
+                return;
+            }
+
+            try {
+                showStatus('正在测试连接...', 'info');
+                
+                const response = await fetch(`${apiUrl}/api/servers`);
+                
+                if (response.ok) {
+                    const servers = await response.json();
+                    showStatus(`✅ 连接成功！找到 ${servers.length} 台服务器`, 'success');
+                } else {
+                    showStatus(`❌ 连接失败：HTTP ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ 连接失败：${error.message}`, 'error');
+            }
+        }
+
+        function openPanel() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const accessKey = document.getElementById('accessKey').value.trim();
+            
+            if (!apiUrl) {
+                showStatus('请输入API服务器地址', 'error');
+                return;
+            }
+
+            let url = `index.html?api=${encodeURIComponent(apiUrl)}`;
+            
+            if (accessKey) {
+                url += `&key=${encodeURIComponent(accessKey)}`;
+            }
+            
+            window.open(url, '_blank');
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // 从URL参数读取配置
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const apiUrl = urlParams.get('api');
+            const accessKey = urlParams.get('key');
+            
+            if (apiUrl) {
+                document.getElementById('apiUrl').value = apiUrl;
+            }
+            
+            if (accessKey) {
+                document.getElementById('accessKey').value = accessKey;
+            }
+        });
+    </script>
+</body>
+</html>

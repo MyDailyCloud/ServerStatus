@@ -1,452 +1,411 @@
+# 🖥️ ServerStatus - 服务器监控神器
+
 <div align="center">
 
-# 🚀 ServerStatus 监控系统
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.19+-00ADD8.svg)](https://golang.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux%20|%20Windows%20|%20macOS-lightgrey.svg)](README.md)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Go-1.19+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge" alt="Platform" />
-  <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge" alt="Status" />
-</p>
+**⚡ 3分钟部署 • 🌈 颜值超高 • 📊 功能齐全 • 🔧 超易定制**
 
-<p align="center">
-  <strong>🔥 一键安装，立即开始监控 - 无需注册！🔥</strong>
-</p>
-
-<p align="center">
-  <strong>⚡ 30秒部署 • 🚫 零配置 • 📊 实时监控 • 🌐 Web仪表板</strong>
-</p>
-
-<p align="center">
-  <a href="README.md">English</a> | <strong>中文</strong>
-</p>
+[快速开始](#-3分钟快速开始) • [功能特性](#-功能特性) • [安装部署](#-安装部署) • [English](README.md)
 
 </div>
 
 ---
 
-## ✨ 核心特性
+## 🎯 这是什么？
 
-<table>
-<tr>
-<td width="50%">
+ServerStatus 是一个**颜值超高、功能齐全**的服务器监控面板，让你轻松掌控所有服务器状态。
 
-### 🚫 **无需注册**
-- 零门槛使用
-- 无需创建账号
-- 无需邮箱验证
-- 立即开始监控
+### 🌟 为什么选择 ServerStatus？
 
-### ⚡ **一键安装**
-- 单条命令部署
-- 自动配置连接
-- 跨平台支持
-- 零依赖运行
+- **⚡ 超级简单**：一行命令启动，3分钟完成部署
+- **🌈 颜值在线**：精美UI设计，支持亮色/暗色主题
+- **📊 功能丰富**：CPU、内存、网络、GPU、温度全监控
+- **🔧 易于定制**：前后端分离，API优先，随意定制
+- **🌍 多语言**：支持中文/英文，国际化友好
+- **📱 全平台**：响应式设计，手机电脑都完美
 
-</td>
-<td width="50%">
+## 🚀 3分钟快速开始
 
-### 📊 **实时监控**
-- CPU、内存、磁盘、网络
-- GPU利用率和温度
-- 系统信息和健康状态
-- 历史数据追踪
-
-### 🌐 **现代化Web界面**
-- 美观、响应式仪表板
-- 实时图表和图形
-- 多语言支持
-- 深色/浅色主题
-
-</td>
-</tr>
-</table>
-
-## 🚀 30秒快速开始 - 无需注册！
-
-### 🎯 方式一：一键安装
-**零配置要求！** 只需运行一条命令：
-
-**Linux/macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-iwr -useb https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.ps1 | iex
-```
-
-**Windows (命令提示符):**
-```cmd
-curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/install.bat -o install.bat && install.bat
-```
-
-✅ **就是这样！** 您的服务器监控立即开始！
-
-### 🌐 方式二：使用托管服务
-**使用我们的托管服务** - 无需安装：
-
-**Linux/macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/kanshan/ServerStatus/main/monitor-agent | bash
-```
-
-**Windows:**
-```powershell
-iwr -useb https://raw.githubusercontent.com/kanshan/ServerStatus/main/monitor-agent.ps1 | iex
-```
-
-✅ 在 https://status.example.com 访问您的仪表板
-
----
-
-## 🔧 更多部署选项
-
-### 🏠 方式二：自托管部署
-
-**下载预构建二进制文件**
+### 第一步：启动监控面板
 
 ```bash
-# 从GitHub Releases下载
-# 访问：https://github.com/MyDailyCloud/ServerStatus/releases
-
-# Linux
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux -o monitor-agent && chmod +x monitor-agent
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux -o data-server && chmod +x data-server
-
-# macOS
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-darwin -o monitor-agent && chmod +x monitor-agent
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-darwin -o data-server && chmod +x data-server
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent.exe" -OutFile "monitor-agent.exe"
-Invoke-WebRequest -Uri "https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server.exe" -OutFile "data-server.exe"
-```
-
-**从源码构建**
-
-```bash
-git clone https://github.com/MyDailyCloud/ServerStatus.git
-cd ServerStatus
-go build -o release/data-server ./data-server
-go build -o release/monitor-agent ./monitor-agent
-```
-
-**启动您自己的服务器**
-
-```bash
-# 启动数据服务器
+# 下载并启动（Linux/macOS）
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux -o data-server
+chmod +x data-server
 ./data-server
 
-# 服务器将在 http://localhost:8080 可用
+# Windows用户下载 data-server-windows.exe 双击运行
 ```
 
-**将代理部署到您的服务器**
+### 第二步：添加服务器监控
+
+在每台要监控的服务器上执行：
 
 ```bash
-# 启动监控代理（连接到您自己的服务器）
-./monitor-agent -url http://localhost:8080/api/data -key your-project-key
+# 一键安装监控代理
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux -o monitor-agent
+chmod +x monitor-agent
+./monitor-agent -server "http://你的面板地址:8080" -key public
 ```
 
-**访问您的自托管仪表板**
+### 第三步：查看监控面板
 
-打开浏览器并导航到：`http://localhost:8080`
+打开浏览器访问：`http://你的服务器IP:8080`
 
-## ⚙️ 配置
+🎉 **搞定！** 现在你就有了一个专业的服务器监控面板！
 
-### 🔧 服务器配置
+## ✨ 功能特性
 
-创建 `config.json` 文件：
+### 🎨 用户体验
+- **🌈 精美界面**：现代化设计，赏心悦目
+- **🌓 主题切换**：亮色/暗色随心选择
+- **🌍 多语言**：中文/英文界面
+- **📱 响应式**：手机电脑都完美适配
+- **⌨️ 快捷键**：键盘操作更高效
 
-```json
-{
-  "project_key": "your-project-secret-key",
-  "server_key": "your-server-secret-key",
-  "host": "0.0.0.0",
-  "port": "8080",
-  "require_auth": true,
-  "data_limit": 1000,
-  "data_interval": 5
+### 📊 监控功能
+- **💻 系统监控**：CPU、内存、磁盘使用率
+- **🌐 网络监控**：实时网速、流量统计
+- **🌡️ 温度监控**：CPU、GPU温度检测
+- **🎮 GPU监控**：显卡使用率、显存占用
+- **📈 历史图表**：性能趋势一目了然
+
+### 🔧 管理功能
+- **📁 服务器分组**：按项目、环境分类管理
+- **🔔 智能告警**：性能异常及时提醒
+- **📤 数据导出**：CSV、JSON、PDF格式
+- **🔐 访问控制**：多项目隔离，安全可靠
+- **⚙️ API地址保存**：自动记住设置，下次直接使用
+
+## 🛠️ 快速部署指南
+
+### 🚀 方式一：一键安装（最简单）
+
+```bash
+# 下载一键安装脚本
+curl -L https://raw.githubusercontent.com/MyDailyCloud/ServerStatus/main/install.sh | bash
+```
+
+### 📋 方式二：手动安装
+
+#### 1. 安装监控服务器
+
+```bash
+# 下载程序
+wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux
+chmod +x data-server-linux
+
+# 启动服务器
+./data-server-linux -port 8080
+```
+
+#### 2. 添加服务器监控
+
+在每台服务器上运行：
+
+```bash
+# 下载监控客户端
+wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux
+chmod +x monitor-agent-linux
+
+# 启动监控（替换成你的面板地址）
+./monitor-agent-linux -server "http://你的面板地址:8080" -key public
+```
+
+#### 3. 自定义前端（可选）
+
+```bash
+# 下载前端源码
+git clone https://github.com/MyDailyCloud/ServerStatus.git
+cd ServerStatus/frontend-ui
+
+# 修改配置
+vi js/config.js  # 设置API地址
+
+# 部署到Web服务器
+cp -r * /var/www/html/
+```
+
+### 🐳 方式三：Docker部署
+
+```bash
+# 启动监控服务器
+docker run -d -p 8080:8080 mydailycloud/serverstatus:latest
+
+# 在被监控服务器上启动代理
+docker run -d mydailycloud/serverstatus-agent:latest \
+  -server "http://面板地址:8080" -key public
+```
+
+## 🔧 配置说明
+
+### 服务器配置
+
+```bash
+./data-server \
+  -port 8080 \                    # 监听端口
+  -auth \                         # 启用认证
+  -server-key "your-secret" \     # 服务器密钥
+  -storage-path "./data"          # 数据存储路径
+```
+
+### 客户端配置
+
+```bash
+./monitor-agent \
+  -server "http://面板地址:8080" \  # 监控面板地址
+  -key "public" \                  # 项目密钥
+  -hostname "自定义名称" \          # 自定义服务器名称
+  -interval 3                      # 上报间隔（秒）
+```
+
+### 前端设置
+
+现在支持在网页界面直接设置API地址，并自动保存：
+
+1. 点击右上角的 🔑 按钮
+2. 输入后端API地址
+3. 勾选"保存到浏览器"选项
+4. 点击"测试连接"确认可用
+5. 点击"应用配置"完成设置
+
+下次访问会自动使用保存的地址！
+
+## 🔐 多项目管理
+
+不同项目的服务器可以完全隔离：
+
+### 1. 生成项目密钥
+
+```bash
+# 为项目A生成访问密钥
+curl -X POST http://你的面板:8080/api/generate-access-key \
+  -H "Content-Type: application/json" \
+  -d '{"server_key": "你的服务器密钥", "project_key": "project-a"}'
+```
+
+### 2. 使用项目密钥
+
+```bash
+# 项目A的服务器
+./monitor-agent -server "http://面板地址:8080" -key "project-a"
+
+# 项目B的服务器
+./monitor-agent -server "http://面板地址:8080" -key "project-b"
+```
+
+### 3. 访问项目面板
+
+```
+# 项目A的专属面板
+http://你的面板:8080?key=生成的访问密钥
+
+# 公开面板（显示key为public的服务器）
+http://你的面板:8080
+```
+
+## 🌟 高级功能
+
+### 🎨 自定义UI
+
+基于API可以开发任何前端：
+
+```javascript
+// 获取服务器数据
+const response = await fetch('http://localhost:8080/api/servers');
+const servers = await response.json();
+
+// 显示服务器信息
+servers.forEach(server => {
+    console.log(`${server.hostname}: CPU ${server.cpu_percent}%`);
+});
+```
+
+### 🐳 生产环境部署
+
+使用Docker Compose：
+
+```yaml
+version: '3.8'
+services:
+  serverstatus:
+    image: mydailycloud/serverstatus:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - AUTH=true
+      - SERVER_KEY=your-secret-key
+    restart: unless-stopped
+```
+
+### 🔒 Nginx反向代理
+
+```nginx
+server {
+    listen 80;
+    server_name monitor.yourdomain.com;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
 }
 ```
 
-**配置项说明：**
-- `project_key`: 项目主密钥，用于生成访问令牌
-- `server_key`: 服务器密钥，用于双密钥认证
-- `host`: 服务器监听地址
-- `port`: 服务器监听端口
-- `require_auth`: 是否启用认证
-- `data_limit`: 每台客户端数据保留条数限制
-- `data_interval`: 推荐的数据上报间隔秒数
+## 🔧 常见问题
 
-### 🔑 认证方式
+### ❓ 无法访问监控面板？
 
-<details>
-<summary><strong>🔐 双密钥认证（推荐）</strong></summary>
-
-**生成访问密钥：**
-```bash
-curl -X POST http://server:8080/api/generate-access-key \
-     -H "Content-Type: application/json" \
-     -d '{"server_key": "server-secret-key", "project_key": "project-alpha"}'
-```
-
-**启动代理：**
-```bash
-./monitor-agent -url http://server:8080/api/data \
-                -key project-alpha \
-                -server-key server-secret-key
-```
-
-**访问仪表板：**
-`http://server:8080?access={accessKey}`
-
-</details>
-
-<details>
-<summary><strong>🎫 项目密钥认证</strong></summary>
+检查防火墙设置：
 
 ```bash
-./monitor-agent -url http://server:8080/api/data -key project-alpha
+# Ubuntu/Debian
+sudo ufw allow 8080
+
+# CentOS/RHEL  
+sudo firewall-cmd --add-port=8080/tcp --permanent
+sudo firewall-cmd --reload
 ```
 
-访问：`http://server:8080?key=project-alpha`
+### ❓ 服务器不显示数据？
 
-</details>
-
-### 🔧 客户端配置
-
-监控代理支持以下命令行参数：
+检查监控代理状态：
 
 ```bash
-./monitor-agent [选项]
+# 查看进程
+ps aux | grep monitor-agent
 
-选项：
-  -url string
-        服务器URL (默认: "https://serverstatus.ltd/api/data")
-  -key string
-        项目密钥
-  -server-key string
-        服务器密钥（双密钥认证时使用）
-  -interval duration
-        上报间隔 (默认: 1s)
-  -timeout duration
-        请求超时 (默认: 10s)
-  -config string
-        配置文件路径
+# 查看日志
+./monitor-agent -server "http://面板地址:8080" -key public -debug
 ```
 
-## 📊 API参考
+### ❓ 如何后台运行？
 
-### 📈 数据端点
+使用screen或systemd：
 
-| 方法 | 端点 | 描述 |
-|------|------|------|
-| `POST` | `/api/data` | 提交监控数据 |
-| `GET` | `/api/servers` | 获取所有服务器列表 |
-| `GET` | `/api/server/{hostname}` | 获取特定服务器详情 |
+```bash
+# 使用screen
+screen -S serverstatus
+./data-server
+# 按 Ctrl+A 再按 D 退出
 
-### 🔐 认证端点
+# 使用systemd
+sudo cp data-server /usr/local/bin/
+sudo systemctl edit --force --full serverstatus.service
+# 配置服务文件
+sudo systemctl enable serverstatus
+sudo systemctl start serverstatus
+```
 
-| 方法 | 端点 | 描述 |
-|------|------|------|
-| `POST` | `/api/generate-access-key` | 生成访问密钥 |
-| `GET` | `/api/access/{accessKey}/servers` | 通过访问密钥获取服务器 |
-| `GET` | `/api/access/{accessKey}/server/{hostname}` | 通过访问密钥获取服务器 |
+### ❓ 如何自定义界面？
 
-## 🏢 部署示例
+修改CSS变量：
 
-### 🏭 企业环境设置
-
-<details>
-<summary><strong>点击展开企业配置</strong></summary>
-
-**服务器配置：**
-```json
-{
-  "project_key": "company-main-key-2024",
-  "server_key": "enterprise-server-key",
-  "host": "0.0.0.0",
-  "port": "8080",
-  "require_auth": true
+```css
+:root {
+    --bg-primary: linear-gradient(135deg, #your-color1, #your-color2);
+    --accent-color: #your-accent-color;
+    --text-primary: #your-text-color;
 }
 ```
 
-**多环境部署：**
-```bash
-# 开发环境
-./monitor-agent -url http://monitor.company.com:8080/api/data -key dev-team
+### ❓ 如何更换API地址？
 
-# 生产环境
-./monitor-agent -url http://monitor.company.com:8080/api/data -key production
+1. 使用网页设置（推荐）：点击右上角🔑按钮进行设置
+2. 修改配置文件：编辑 `frontend-ui/js/config.js`
+3. URL参数：访问 `http://面板地址?api=新的API地址`
 
-# 运维团队
-./monitor-agent -url http://monitor.company.com:8080/api/data -key ops-team
-```
+## 📊 API接口文档
 
-</details>
-
-### 🏠 个人环境设置
+### 基础接口
 
 ```bash
-# 简单启动
-./data-server
-./monitor-agent -key home-server
+# 获取所有服务器
+GET /api/servers
 
-# 访问仪表板
-open https://serverstatus.ltd?key=home-server
+# 获取服务器详情
+GET /api/server/{hostname}
+
+# 获取设备统计
+GET /api/uuid-count
 ```
 
-## 🛠️ 开发
-
-### 📋 先决条件
-
-- Go 1.19+
-- Git
-
-### 🔨 构建说明
+### 项目接口
 
 ```bash
-# 克隆仓库
-git clone https://github.com/MyDailyCloud/ServerStatus.git
-cd ServerStatus
+# 获取项目服务器列表
+GET /api/access/{access_key}/servers
 
-# 初始化模块
-go mod init ServerStatus
-go mod tidy
-
-# 为当前平台构建
-go build -o release/data-server ./data-server
-go build -o release/monitor-agent ./monitor-agent
-
-# 跨平台构建
-GOOS=linux go build -o release/data-server-linux ./data-server
-GOOS=darwin go build -o release/data-server-darwin ./data-server
-GOOS=windows go build -o release/data-server.exe ./data-server
+# 获取项目服务器详情  
+GET /api/access/{access_key}/server/{hostname}
 ```
 
+完整文档：`http://你的服务器:8080/api/docs`
 
-## 🐛 故障排除
+## 🤝 参与贡献
 
-<details>
-<summary><strong>🔍 常见问题</strong></summary>
+欢迎所有形式的贡献！
 
-**连接被拒绝**
-- ✅ 检查服务器是否正在运行
-- ✅ 验证端口可用性
-- ✅ 检查防火墙设置
+### 如何贡献
 
-**认证失败**
-- ✅ 验证项目密钥
-- ✅ 检查服务器密钥配置
-- ✅ 验证访问令牌过期
+1. **🐛 报告Bug**：[提交Issue](https://github.com/MyDailyCloud/ServerStatus/issues)
+2. **✨ 建议功能**：[功能请求](https://github.com/MyDailyCloud/ServerStatus/issues/new)
+3. **📝 完善文档**：帮助改进文档
+4. **🎨 优化界面**：让UI更美观
+5. **🌍 多语言**：添加更多语言支持
 
-**数据未更新**
-- ✅ 确认代理正在运行
-- ✅ 检查网络连接
-- ✅ 查看服务器日志
+### 开发流程
 
-</details>
-
-### 📋 日志查看
-
-服务器和代理都会输出详细的运行日志，包括：
-- 连接状态
-- 认证结果
-- 错误信息
-- 性能统计
-
-## 📈 性能
-
-| 指标 | 值 |
-|------|----|
-| 内存使用 | < 50MB |
-| CPU使用 | < 1% |
-| 网络开销 | < 1KB/s 每个代理 |
-| 支持的代理数 | 1000+ |
-
-## 🤝 贡献
-
-我们欢迎贡献！🎉
-
-1. 🍴 Fork 仓库
-2. 🌟 创建你的功能分支 (`git checkout -b feature/amazing-feature`)
-3. 💾 提交你的更改 (`git commit -m 'Add amazing feature'`)
-4. 📤 推送到分支 (`git push origin feature/amazing-feature`)
-5. 🔄 打开一个 Pull Request
-
-### 📝 开发指南
-
-- 遵循 Go 最佳实践
-- 为新功能添加测试
-- 更新文档
-- 使用常规提交
-
-## 🎨 自动化脚本
-
-### Windows 批处理脚本
-
-**启动服务器 (start-server.bat)：**
-```batch
-@echo off
-cd /d "%~dp0"
-release\data-server.exe
-pause
-```
-
-**启动代理 (start-agent.bat)：**
-```batch
-@echo off
-set PROJECT_KEY=your-project-key
-cd /d "%~dp0"
-release\monitor-agent.exe -url https://serverstatus.ltd/api/data -key %PROJECT_KEY%
-pause
-```
-
-### Linux Shell 脚本
-
-**启动服务器 (start-server.sh)：**
 ```bash
-#!/bin/bash
-cd "$(dirname "$0")"
-./release/data-server-linux
+# 1. Fork项目
+# 2. 克隆代码
+git clone https://github.com/你的用户名/ServerStatus.git
+
+# 3. 创建分支
+git checkout -b feature/新功能
+
+# 4. 开发测试
+cd data-server && go run main.go
+
+# 5. 提交代码
+git commit -m "添加新功能"
+git push origin feature/新功能
+
+# 6. 创建PR
 ```
 
-**启动代理 (start-agent.sh)：**
-```bash
-#!/bin/bash
-PROJECT_KEY="your-project-key"
-cd "$(dirname "$0")"
-./release/monitor-agent-linux -url https://serverstatus.ltd/api/data -key $PROJECT_KEY
-```
+## 📄 开源协议
 
-## 📄 许可证
+本项目基于 MIT 协议开源，可自由使用和修改。
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
+## 🙏 致谢
 
-## 🌟 Star 历史
+感谢所有贡献者和以下开源项目：
 
-<div align="center">
+- [Go](https://golang.org/) - 后端开发语言
+- [Chart.js](https://chartjs.org/) - 图表展示
+- 所有给予Star和反馈的用户
 
-[![Star History Chart](https://api.star-history.com/svg?repos=MyDailyCloud/ServerStatus&type=Date)](https://star-history.com/#MyDailyCloud/ServerStatus&Date)
+## 📞 联系方式
 
-</div>
-
-## 💬 社区
-
-<div align="center">
-
-[![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-333?style=for-the-badge&logo=github)](https://github.com/MyDailyCloud/ServerStatus/discussions)
-
-</div>
+- 🐛 **Bug反馈**: [GitHub Issues](https://github.com/MyDailyCloud/ServerStatus/issues)
+- 💬 **功能讨论**: [GitHub Discussions](https://github.com/MyDailyCloud/ServerStatus/discussions) 
+- 📧 **商务合作**: admin@mydailycloud.com
+- 🌐 **官方网站**: https://serverstatus.mydailycloud.com
 
 ---
 
 <div align="center">
 
-**由 Obscura 团队用 ❤️ 制作**
+### 🌟 如果这个项目对你有帮助，请给个Star支持一下！🌟
 
-*如果你觉得这个项目有帮助，请考虑给它一个 ⭐！*
+**让服务器监控变得简单而美好** ❤️
 
-[🚀 开始使用](#-快速开始) • [📖 文档](docs/) • [🐛 报告Bug](issues/) • [💡 请求功能](issues/)
+[⭐ 给个Star](https://github.com/MyDailyCloud/ServerStatus) • [🍴 Fork项目](https://github.com/MyDailyCloud/ServerStatus/fork) • [📢 分享项目](https://twitter.com/intent/tweet?text=发现了一个超棒的服务器监控项目！&url=https://github.com/MyDailyCloud/ServerStatus)
+
+</div>

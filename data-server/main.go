@@ -3,13 +3,11 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -57,8 +55,26 @@ type DiskInfo struct {
 }
 
 type NetInfo struct {
-	BytesSent uint64 `json:"bytes_sent"`
-	BytesRecv uint64 `json:"bytes_recv"`
+	BytesSent    uint64        `json:"bytes_sent"`     // 总发送字节数
+	BytesRecv    uint64        `json:"bytes_recv"`     // 总接收字节数
+	PacketsSent  uint64        `json:"packets_sent"`   // 总发送包数
+	PacketsRecv  uint64        `json:"packets_recv"`   // 总接收包数
+	SpeedSent    float64       `json:"speed_sent"`     // 发送速率 (KB/s)
+	SpeedRecv    float64       `json:"speed_recv"`     // 接收速率 (KB/s)
+	Interfaces   []NetInterface `json:"interfaces"`     // 网卡详细信息
+}
+
+type NetInterface struct {
+	Name        string   `json:"name"`         // 网卡名称
+	BytesSent   uint64   `json:"bytes_sent"`   // 发送字节数
+	BytesRecv   uint64   `json:"bytes_recv"`   // 接收字节数
+	PacketsSent uint64   `json:"packets_sent"` // 发送包数
+	PacketsRecv uint64   `json:"packets_recv"` // 接收包数
+	SpeedSent   float64  `json:"speed_sent"`   // 发送速率 (KB/s)
+	SpeedRecv   float64  `json:"speed_recv"`   // 接收速率 (KB/s)
+	IsUp        bool     `json:"is_up"`        // 网卡状态
+	MTU         int      `json:"mtu"`          // MTU
+	Addrs       []string `json:"addrs"`        // IP地址列表
 }
 
 type GPUInfo struct {
@@ -99,18 +115,22 @@ type ServerInfo struct {
 }
 
 type ServerStatus struct {
-	Hostname      string    `json:"hostname"`
-	SessionID     string    `json:"session_id,omitempty"` // UUID session标识
-	LastSeen      time.Time `json:"last_seen"`
-	Status        string    `json:"status"`
-	CPUPercent    float64   `json:"cpu_percent"`
-	MemoryPercent float64   `json:"memory_percent"`
-	DiskPercent   float64   `json:"disk_percent"`
-	OS            string    `json:"os"`
-	CPUTemp       float64   `json:"cpu_temp"`
-	GPUTemp       float64   `json:"gpu_temp"` // 保持兼容性，主GPU温度
-	GPUs          []GPUInfo `json:"gpus"`     // 所有GPU信息
-	MaxTemp       float64   `json:"max_temp"`
+	Hostname          string    `json:"hostname"`
+	SessionID         string    `json:"session_id,omitempty"` // UUID session标识
+	LastSeen          time.Time `json:"last_seen"`
+	Status            string    `json:"status"`
+	CPUPercent        float64   `json:"cpu_percent"`
+	MemoryPercent     float64   `json:"memory_percent"`
+	DiskPercent       float64   `json:"disk_percent"`
+	OS                string    `json:"os"`
+	CPUTemp           float64   `json:"cpu_temp"`
+	GPUTemp           float64   `json:"gpu_temp"` // 保持兼容性，主GPU温度
+	GPUs              []GPUInfo `json:"gpus"`     // 所有GPU信息
+	MaxTemp           float64   `json:"max_temp"`
+	NetworkSpeedSent  float64   `json:"network_speed_sent"`  // 网络发送速率 (KB/s)
+	NetworkSpeedRecv  float64   `json:"network_speed_recv"`  // 网络接收速率 (KB/s)
+	NetworkBytesSent  uint64    `json:"network_bytes_sent"`  // 总发送字节数
+	NetworkBytesRecv  uint64    `json:"network_bytes_recv"`  // 总接收字节数
 }
 
 type ServerConfig struct {
@@ -163,12 +183,38 @@ var (
 	showHelp     = flag.Bool("help", false, "显示帮助信息")
 )
 
-//go:embed web-ui
-var webUI embed.FS
+// 移除嵌入的前端文件系统，实现前后端分离
 
 const (
 	offlineThreshold = 30 * time.Second
 )
+
+// corsMiddleware 处理CORS跨域请求
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 设置CORS头
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Server-Key, X-Project-Key")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // 24小时
+
+		// 处理预检请求
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// 继续处理请求
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	flag.Parse()
@@ -216,6 +262,9 @@ func main() {
 
 	r := mux.NewRouter()
 
+	// 添加CORS中间件支持前后端分离
+	r.Use(corsMiddleware)
+
 	// API路由
 	r.HandleFunc("/api/data", handleData).Methods("POST")
 	r.HandleFunc("/api/register-session", handleRegisterSession).Methods("POST")
@@ -232,24 +281,25 @@ func main() {
 	// 下载路由
 	r.HandleFunc("/download/{filename}", handleDownload).Methods("GET")
 	r.HandleFunc("/install", handleInstallScript).Methods("GET")
+	
+	// API文档服务
+	r.HandleFunc("/API.md", handleAPIDoc).Methods("GET")
 
-	// 静态文件服务 - 使用嵌入的文件系统
-	webUIFS, err := fs.Sub(webUI, "web-ui")
-	if err != nil {
-		log.Fatal("无法创建嵌入文件系统:", err)
-	}
-	r.PathPrefix("/").Handler(http.FileServer(http.FS(webUIFS)))
+	// 前后端分离：移除静态文件服务
+	// 前端需要独立部署，通过API接口访问数据
 
 	// 启动清理协程
 	go cleanupRoutine()
 
-	log.Printf("服务器启动在 %s:%s", serverConfig.Host, serverConfig.Port)
+	log.Printf("API服务器启动在 %s:%s", serverConfig.Host, serverConfig.Port)
 	if serverConfig.Host == "0.0.0.0" {
-		log.Printf("访问 http://localhost:%s 查看监控界面", serverConfig.Port)
-		log.Printf("本地访问 http://localhost:%s 查看监控界面", serverConfig.Port)
+		log.Printf("API基础地址: http://localhost:%s/api", serverConfig.Port)
+		log.Printf("API文档地址: http://localhost:%s/API.md", serverConfig.Port)
 	} else {
-		log.Printf("访问 http://%s:%s 查看监控界面", serverConfig.Host, serverConfig.Port)
+		log.Printf("API基础地址: http://%s:%s/api", serverConfig.Host, serverConfig.Port)
+		log.Printf("API文档地址: http://%s:%s/API.md", serverConfig.Host, serverConfig.Port)
 	}
+	log.Println("前后端已分离，前端需独立部署")
 	log.Fatal(http.ListenAndServe(serverConfig.Host+":"+serverConfig.Port, r))
 }
 
@@ -341,18 +391,22 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 		}
 
 		servers = append(servers, ServerStatus{
-			Hostname:      server.Latest.Hostname,
-			SessionID:     server.Latest.SessionID,
-			LastSeen:      server.LastSeen,
-			Status:        status,
-			CPUPercent:    server.Latest.CPU.UsagePercent,
-			MemoryPercent: server.Latest.Memory.UsagePercent,
-			DiskPercent:   server.Latest.Disk.UsagePercent,
-			OS:            server.Latest.OS.Platform,
-			CPUTemp:       server.Latest.Temperature.CPUTemp,
-			GPUTemp:       server.Latest.Temperature.GPUTemp,
-			GPUs:          server.Latest.GPUs, // 添加所有GPU信息
-			MaxTemp:       server.Latest.Temperature.MaxTemp,
+			Hostname:          server.Latest.Hostname,
+			SessionID:         server.Latest.SessionID,
+			LastSeen:          server.LastSeen,
+			Status:            status,
+			CPUPercent:        server.Latest.CPU.UsagePercent,
+			MemoryPercent:     server.Latest.Memory.UsagePercent,
+			DiskPercent:       server.Latest.Disk.UsagePercent,
+			OS:                server.Latest.OS.Platform,
+			CPUTemp:           server.Latest.Temperature.CPUTemp,
+			GPUTemp:           server.Latest.Temperature.GPUTemp,
+			GPUs:              server.Latest.GPUs, // 添加所有GPU信息
+			MaxTemp:           server.Latest.Temperature.MaxTemp,
+			NetworkSpeedSent:  server.Latest.Network.SpeedSent,
+			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
+			NetworkBytesSent:  server.Latest.Network.BytesSent,
+			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
 		})
 	}
 
@@ -532,18 +586,22 @@ func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 		}
 
 		servers = append(servers, ServerStatus{
-			Hostname:      server.Latest.Hostname,
-			SessionID:     server.Latest.SessionID,
-			LastSeen:      server.LastSeen,
-			Status:        status,
-			CPUPercent:    server.Latest.CPU.UsagePercent,
-			MemoryPercent: server.Latest.Memory.UsagePercent,
-			DiskPercent:   server.Latest.Disk.UsagePercent,
-			OS:            server.Latest.OS.Platform,
-			CPUTemp:       server.Latest.Temperature.CPUTemp,
-			GPUTemp:       server.Latest.Temperature.GPUTemp,
-			GPUs:          server.Latest.GPUs, // 添加所有GPU信息
-			MaxTemp:       server.Latest.Temperature.MaxTemp,
+			Hostname:          server.Latest.Hostname,
+			SessionID:         server.Latest.SessionID,
+			LastSeen:          server.LastSeen,
+			Status:            status,
+			CPUPercent:        server.Latest.CPU.UsagePercent,
+			MemoryPercent:     server.Latest.Memory.UsagePercent,
+			DiskPercent:       server.Latest.Disk.UsagePercent,
+			OS:                server.Latest.OS.Platform,
+			CPUTemp:           server.Latest.Temperature.CPUTemp,
+			GPUTemp:           server.Latest.Temperature.GPUTemp,
+			GPUs:              server.Latest.GPUs, // 添加所有GPU信息
+			MaxTemp:           server.Latest.Temperature.MaxTemp,
+			NetworkSpeedSent:  server.Latest.Network.SpeedSent,
+			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
+			NetworkBytesSent:  server.Latest.Network.BytesSent,
+			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
 		})
 	}
 
@@ -783,6 +841,24 @@ func handleInstallScript(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("安装脚本下载请求来自: %s", r.RemoteAddr)
+}
+
+func handleAPIDoc(w http.ResponseWriter, r *http.Request) {
+	// 读取API文档
+	docPath := "./API.md"
+	doc, err := os.ReadFile(docPath)
+	if err != nil {
+		http.Error(w, "API文档不存在", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if _, err := w.Write(doc); err != nil {
+		log.Printf("Error writing API doc: %v", err)
+	}
+
+	log.Printf("API文档访问请求来自: %s", r.RemoteAddr)
 }
 
 func getEmbeddedInstallScript() string {
