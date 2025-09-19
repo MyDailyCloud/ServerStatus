@@ -11,8 +11,9 @@
 # Output of the go coverage tool
 *.out
 
-# Go workspace file
+# Go workspace files
 go.work
+go.work.sum
 
 # Build directories
 build/
@@ -43,3 +44,22 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Binary files
+monitor-agent/monitor-agent
+monitor-agent/monitor-agent-*
+data-server/data-server
+data-server/data-server-*
+
+# Keep example config files
+!*.example.json
+
+# Test directories
+test-run/
+local-test-run/
+*-test-run/
+
+# Test scripts (temporary)
+test-*.sh
+local-test.sh
+docker-test.sh

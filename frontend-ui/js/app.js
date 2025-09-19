@@ -25,6 +25,7 @@ class GPUMonitor {
         this.viewMode = 'cards'; // 'cards' or 'grouped'
         this.selectedServers = new Set();
         this.contextMenuTarget = null;
+        this.userResources = null; // 用户资源数据
         
         this.init();
     }
@@ -87,6 +88,15 @@ class GPUMonitor {
             zh: {
                 // 页面标题和导航
                 pageTitle: 'ServerStatus Monitor',
+                userResources: {
+                    title: '用户资源使用',
+                    username: '用户名',
+                    processCount: '进程数',
+                    cpuUsage: 'CPU使用率',
+                    memoryUsage: '内存使用',
+                    topProcesses: 'TOP进程',
+                    noData: '暂无用户资源数据'
+                },
                 connectionStatus: {
                     online: '数据正常',
                     offline: '连接异常',
@@ -331,6 +341,15 @@ class GPUMonitor {
             en: {
                 // 页面标题和导航
                 pageTitle: 'ServerStatus Monitor',
+                userResources: {
+                    title: 'User Resource Usage',
+                    username: 'Username',
+                    processCount: 'Process Count',
+                    cpuUsage: 'CPU Usage',
+                    memoryUsage: 'Memory Usage',
+                    topProcesses: 'Top Processes',
+                    noData: 'No user resource data available'
+                },
                 connectionStatus: {
                     online: 'Online',
                     offline: 'Offline',
@@ -3068,6 +3087,12 @@ class GPUMonitor {
                 const serverData = await response.json();
                 this.updateCharts(serverData);
                 this.updateSystemInfo(serverData.latest);
+                
+                // 加载用户资源数据
+                if (serverData.latest && serverData.latest.user_resources) {
+                    this.userResources = serverData.latest.user_resources;
+                    this.updateUserResourcesTable();
+                }
             }
         } catch (error) {
             console.error('加载服务器详情失败:', error);
@@ -3478,6 +3503,57 @@ class GPUMonitor {
         document.getElementById('system-info').innerHTML = systemInfoHtml;
     }
 
+    updateUserResourcesTable() {
+        const container = document.getElementById('user-resources-container');
+        if (!container) return;
+        
+        if (!this.userResources || this.userResources.length === 0) {
+            container.innerHTML = `<div class="no-data">${this.t('userResources.noData')}</div>`;
+            return;
+        }
+        
+        let html = `
+            <h3>${this.t('userResources.title')}</h3>
+            <div class="user-resources-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>${this.t('userResources.username')}</th>
+                            <th>${this.t('userResources.processCount')}</th>
+                            <th>${this.t('userResources.cpuUsage')}</th>
+                            <th>${this.t('userResources.memoryUsage')}</th>
+                            <th>${this.t('userResources.topProcesses')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        this.userResources.forEach(user => {
+            const topProcesses = user.top_processes ? 
+                user.top_processes.slice(0, 3).map(p => 
+                    `${p.name} (${p.cpu_percent.toFixed(1)}%)`
+                ).join(', ') : '-';
+            
+            html += `
+                <tr>
+                    <td>${user.username}</td>
+                    <td>${user.process_count}</td>
+                    <td class="${user.cpu_percent > 50 ? 'high' : ''}">${user.cpu_percent.toFixed(1)}%</td>
+                    <td>${user.memory_mb} MB (${user.memory_percent.toFixed(1)}%)</td>
+                    <td class="processes-cell">${topProcesses}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
     hideCharts() {
         document.getElementById('charts-section').style.display = 'none';
         this.selectedServer = null;

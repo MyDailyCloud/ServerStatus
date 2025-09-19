@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,21 +22,23 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	psnet "github.com/shirou/gopsutil/v3/net"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 type SystemInfo struct {
-	Hostname    string    `json:"hostname"`
-	SessionID   string    `json:"session_id,omitempty"` // UUID session标识
-	Timestamp   time.Time `json:"timestamp"`
-	CPU         CPUInfo   `json:"cpu"`
-	Memory      MemInfo   `json:"memory"`
-	Disk        DiskInfo  `json:"disk"`
-	Network     NetInfo   `json:"network"`
-	GPU         GPUInfo   `json:"gpu"`  // 保持兼容性，主GPU信息
-	GPUs        []GPUInfo `json:"gpus"` // 所有GPU信息
-	OS          OSInfo    `json:"os"`
-	Temperature TempInfo  `json:"temperature"`
-	ProjectKey  string    `json:"project_key,omitempty"`
+	Hostname      string              `json:"hostname"`
+	SessionID     string              `json:"session_id,omitempty"` // UUID session标识
+	Timestamp     time.Time           `json:"timestamp"`
+	CPU           CPUInfo             `json:"cpu"`
+	Memory        MemInfo             `json:"memory"`
+	Disk          DiskInfo            `json:"disk"`
+	Network       NetInfo             `json:"network"`
+	GPU           GPUInfo             `json:"gpu"`  // 保持兼容性，主GPU信息
+	GPUs          []GPUInfo           `json:"gpus"` // 所有GPU信息
+	OS            OSInfo              `json:"os"`
+	Temperature   TempInfo            `json:"temperature"`
+	ProjectKey    string              `json:"project_key,omitempty"`
+	UserResources []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type CPUInfo struct {
@@ -106,21 +109,46 @@ type TempInfo struct {
 	AvgTemp float64            `json:"avg_temp"`
 }
 
+// UserResourceInfo 用户资源使用信息
+type UserResourceInfo struct {
+	Username      string        `json:"username"`
+	UID           uint32        `json:"uid"`
+	ProcessCount  int           `json:"process_count"`
+	CPUPercent    float64       `json:"cpu_percent"`
+	MemoryMB      uint64        `json:"memory_mb"`
+	MemoryPercent float64       `json:"memory_percent"`
+	TopProcesses  []ProcessInfo `json:"top_processes"`
+}
+
+// ProcessInfo 进程信息
+type ProcessInfo struct {
+	PID          int32   `json:"pid"`
+	Name         string  `json:"name"`
+	Username     string  `json:"username"`
+	CPUPercent   float64 `json:"cpu_percent"`
+	MemoryMB     uint64  `json:"memory_mb"`
+	MemoryPercent float64 `json:"memory_percent"`
+	Status       string  `json:"status"`
+	Cmdline      string  `json:"cmdline,omitempty"`
+}
+
 type Config struct {
-	ServerURL      string        `json:"server_url"`
-	ProjectKey     string        `json:"project_key"`
-	ServerKey      string        `json:"server_key"`
-	ReportInterval time.Duration `json:"report_interval"`
-	Timeout        time.Duration `json:"timeout"`
+	ServerURL           string        `json:"server_url"`
+	ProjectKey          string        `json:"project_key"`
+	ServerKey           string        `json:"server_key"`
+	ReportInterval      time.Duration `json:"report_interval"`
+	Timeout             time.Duration `json:"timeout"`
+	EnableUserResources bool          `json:"enable_user_resources"` // 是否启用用户资源监控
 }
 
 var (
 	config = Config{
-		ServerURL:      "https://serverstatus.ltd/api/data",
-		ProjectKey:     "public",
-		ServerKey:      "serverstatus.ltd",
-		ReportInterval: 5 * time.Second,
-		Timeout:        10 * time.Second,
+		ServerURL:           "https://serverstatus.ltd/api/data",
+		ProjectKey:          "public",
+		ServerKey:           "serverstatus.ltd",
+		ReportInterval:      5 * time.Second,
+		Timeout:             10 * time.Second,
+		EnableUserResources: true, // 默认启用用户资源监控
 	}
 	sessionID string // 全局session ID
 	
@@ -143,12 +171,13 @@ type SessionRegisterResponse struct {
 
 var (
 	// 命令行参数
-	serverURL  = flag.String("url", "", "服务器上报URL")
-	projectKey = flag.String("key", "", "项目密钥 (Project Key)")
-	serverKey  = flag.String("server-key", "", "服务器密钥 (Server Key) - 双密钥认证必需")
-	configFile = flag.String("config", "config.json", "配置文件路径")
-	silentMode = flag.Bool("silent", false, "静默模式 - 第一次上报成功后不再打印上报信息")
-	showHelp   = flag.Bool("help", false, "显示帮助信息")
+	serverURL           = flag.String("url", "", "服务器上报URL")
+	projectKey          = flag.String("key", "", "项目密钥 (Project Key)")
+	serverKey           = flag.String("server-key", "", "服务器密钥 (Server Key) - 双密钥认证必需")
+	configFile          = flag.String("config", "config.json", "配置文件路径")
+	silentMode          = flag.Bool("silent", false, "静默模式 - 第一次上报成功后不再打印上报信息")
+	enableUserResources = flag.Bool("user-resources", true, "启用用户资源监控")
+	showHelp            = flag.Bool("help", false, "显示帮助信息")
 
 	// 静默模式状态
 	firstReportSuccess = false
@@ -174,6 +203,9 @@ func main() {
 	}
 	if *serverKey != "" {
 		config.ServerKey = *serverKey
+	}
+	if *enableUserResources != config.EnableUserResources {
+		config.EnableUserResources = *enableUserResources
 	}
 
 	log.Println("启动 ServerStatus Monitor Agent...")
@@ -367,6 +399,11 @@ func collectSystemInfo() (*SystemInfo, error) {
 
 	// 温度信息
 	info.Temperature = collectTemperatureInfo()
+
+	// 用户资源信息（如果启用）
+	if config.EnableUserResources {
+		info.UserResources = collectUserResourceInfo()
+	}
 
 	return info, nil
 }
@@ -716,6 +753,9 @@ func loadConfig() {
 	if fileConfig.Timeout > 0 {
 		config.Timeout = fileConfig.Timeout
 	}
+	if fileConfig.EnableUserResources {
+		config.EnableUserResources = fileConfig.EnableUserResources
+	}
 
 	log.Printf("加载配置文件 | Loading config file: %s", *configFile)
 
@@ -762,6 +802,8 @@ func printUsage() {
 	fmt.Println("        服务器密钥 | Server key (双密钥认证必需 | Required for dual-key authentication)")
 	fmt.Println("  -config string")
 	fmt.Println("        配置文件路径 | Config file path (默认 | default: config.json)")
+	fmt.Println("  -user-resources")
+	fmt.Println("        启用用户资源监控 | Enable user resource monitoring (默认启用 | enabled by default)")
 	fmt.Println("  -silent")
 	fmt.Println("        静默模式 | Silent mode - 第一次上报成功后不再打印上报信息 | Stop printing report details after first successful report")
 	fmt.Println("  -help")
@@ -792,7 +834,8 @@ func printUsage() {
 	fmt.Println(`    "project_key": "project-alpha",`)
 	fmt.Println(`    "server_key": "your-server-secret",`)
 	fmt.Println(`    "report_interval": "1s",`)
-	fmt.Println(`    "timeout": "10s"`)
+	fmt.Println(`    "timeout": "10s",`)
+	fmt.Println(`    "enable_user_resources": true`)
 	fmt.Println(`  }`)
 	fmt.Println()
 	fmt.Println("前后端分离架构说明 | Frontend-Backend Separation Architecture:")
@@ -1079,4 +1122,127 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// collectUserResourceInfo 收集用户资源使用信息
+func collectUserResourceInfo() []UserResourceInfo {
+	processes, err := process.Processes()
+	if err != nil {
+		log.Printf("获取进程列表失败 | Failed to get process list: %v", err)
+		return nil
+	}
+
+	// 用户资源映射
+	userMap := make(map[string]*UserResourceInfo)
+	processDetails := make([]ProcessInfo, 0)
+
+	// 获取总内存用于计算百分比
+	memStat, _ := mem.VirtualMemory()
+	totalMem := float64(memStat.Total)
+
+	for _, p := range processes {
+		// 获取进程信息
+		name, _ := p.Name()
+		if name == "" {
+			continue
+		}
+
+		// 获取用户名和UID
+		username, err := p.Username()
+		if err != nil {
+			continue // 跳过无法获取用户信息的进程
+		}
+
+		uids, err := p.Uids()
+		var uid uint32
+		if err == nil && len(uids) > 0 {
+			uid = uint32(uids[0])
+		}
+
+		// 获取CPU使用率
+		cpuPercent, _ := p.CPUPercent()
+
+		// 获取内存信息
+		memInfo, err := p.MemoryInfo()
+		if err != nil {
+			memInfo = &process.MemoryInfoStat{}
+		}
+		memoryMB := memInfo.RSS / 1024 / 1024
+		memoryPercent := 0.0
+		if totalMem > 0 {
+			memoryPercent = float64(memInfo.RSS) / totalMem * 100
+		}
+
+		// 获取进程状态
+		status, _ := p.Status()
+
+		// 获取命令行（可选）
+		cmdline, _ := p.Cmdline()
+		if len(cmdline) > 200 {
+			cmdline = cmdline[:200] + "..."
+		}
+
+		// 创建进程信息
+		procInfo := ProcessInfo{
+			PID:           p.Pid,
+			Name:          name,
+			Username:      username,
+			CPUPercent:    cpuPercent,
+			MemoryMB:      memoryMB,
+			MemoryPercent: memoryPercent,
+			Status:        strings.Join(status, ","),
+			Cmdline:       cmdline,
+		}
+		processDetails = append(processDetails, procInfo)
+
+		// 聚合到用户级别
+		if userInfo, exists := userMap[username]; exists {
+			userInfo.ProcessCount++
+			userInfo.CPUPercent += cpuPercent
+			userInfo.MemoryMB += memoryMB
+			userInfo.MemoryPercent += memoryPercent
+		} else {
+			userMap[username] = &UserResourceInfo{
+				Username:      username,
+				UID:           uid,
+				ProcessCount:  1,
+				CPUPercent:    cpuPercent,
+				MemoryMB:      memoryMB,
+				MemoryPercent: memoryPercent,
+				TopProcesses:  []ProcessInfo{},
+			}
+		}
+	}
+
+	// 按CPU使用率排序进程
+	sort.Slice(processDetails, func(i, j int) bool {
+		return processDetails[i].CPUPercent > processDetails[j].CPUPercent
+	})
+
+	// 为每个用户选择TOP进程
+	for _, proc := range processDetails {
+		if userInfo, exists := userMap[proc.Username]; exists {
+			if len(userInfo.TopProcesses) < 5 { // 每个用户保留前5个进程
+				userInfo.TopProcesses = append(userInfo.TopProcesses, proc)
+			}
+		}
+	}
+
+	// 转换为切片并排序
+	var userResources []UserResourceInfo
+	for _, userInfo := range userMap {
+		userResources = append(userResources, *userInfo)
+	}
+
+	// 按CPU使用率排序用户
+	sort.Slice(userResources, func(i, j int) bool {
+		return userResources[i].CPUPercent > userResources[j].CPUPercent
+	})
+
+	// 限制返回的用户数量（前20个用户）
+	if len(userResources) > 20 {
+		userResources = userResources[:20]
+	}
+
+	return userResources
 }

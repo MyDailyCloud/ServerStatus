@@ -20,18 +20,19 @@ import (
 )
 
 type SystemInfo struct {
-	Hostname    string    `json:"hostname"`
-	SessionID   string    `json:"session_id,omitempty"` // UUID session标识
-	Timestamp   time.Time `json:"timestamp"`
-	CPU         CPUInfo   `json:"cpu"`
-	Memory      MemInfo   `json:"memory"`
-	Disk        DiskInfo  `json:"disk"`
-	Network     NetInfo   `json:"network"`
-	GPU         GPUInfo   `json:"gpu"`  // 保持兼容性，主GPU信息
-	GPUs        []GPUInfo `json:"gpus"` // 所有GPU信息
-	OS          OSInfo    `json:"os"`
-	Temperature TempInfo  `json:"temperature"`
-	ProjectKey  string    `json:"project_key,omitempty"`
+	Hostname      string              `json:"hostname"`
+	SessionID     string              `json:"session_id,omitempty"` // UUID session标识
+	Timestamp     time.Time           `json:"timestamp"`
+	CPU           CPUInfo             `json:"cpu"`
+	Memory        MemInfo             `json:"memory"`
+	Disk          DiskInfo            `json:"disk"`
+	Network       NetInfo             `json:"network"`
+	GPU           GPUInfo             `json:"gpu"`  // 保持兼容性，主GPU信息
+	GPUs          []GPUInfo           `json:"gpus"` // 所有GPU信息
+	OS            OSInfo              `json:"os"`
+	Temperature   TempInfo            `json:"temperature"`
+	ProjectKey    string              `json:"project_key,omitempty"`
+	UserResources []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type CPUInfo struct {
@@ -100,6 +101,29 @@ type TempInfo struct {
 	AvgTemp float64            `json:"avg_temp"`
 }
 
+// UserResourceInfo 用户资源使用信息
+type UserResourceInfo struct {
+	Username      string        `json:"username"`
+	UID           uint32        `json:"uid"`
+	ProcessCount  int           `json:"process_count"`
+	CPUPercent    float64       `json:"cpu_percent"`
+	MemoryMB      uint64        `json:"memory_mb"`
+	MemoryPercent float64       `json:"memory_percent"`
+	TopProcesses  []ProcessInfo `json:"top_processes"`
+}
+
+// ProcessInfo 进程信息
+type ProcessInfo struct {
+	PID           int32   `json:"pid"`
+	Name          string  `json:"name"`
+	Username      string  `json:"username"`
+	CPUPercent    float64 `json:"cpu_percent"`
+	MemoryMB      uint64  `json:"memory_mb"`
+	MemoryPercent float64 `json:"memory_percent"`
+	Status        string  `json:"status"`
+	Cmdline       string  `json:"cmdline,omitempty"`
+}
+
 type ServerData struct {
 	mu             sync.RWMutex
 	servers        map[string]*ServerInfo // key: sessionID, value: ServerInfo
@@ -115,22 +139,23 @@ type ServerInfo struct {
 }
 
 type ServerStatus struct {
-	Hostname          string    `json:"hostname"`
-	SessionID         string    `json:"session_id,omitempty"` // UUID session标识
-	LastSeen          time.Time `json:"last_seen"`
-	Status            string    `json:"status"`
-	CPUPercent        float64   `json:"cpu_percent"`
-	MemoryPercent     float64   `json:"memory_percent"`
-	DiskPercent       float64   `json:"disk_percent"`
-	OS                string    `json:"os"`
-	CPUTemp           float64   `json:"cpu_temp"`
-	GPUTemp           float64   `json:"gpu_temp"` // 保持兼容性，主GPU温度
-	GPUs              []GPUInfo `json:"gpus"`     // 所有GPU信息
-	MaxTemp           float64   `json:"max_temp"`
-	NetworkSpeedSent  float64   `json:"network_speed_sent"`  // 网络发送速率 (KB/s)
-	NetworkSpeedRecv  float64   `json:"network_speed_recv"`  // 网络接收速率 (KB/s)
-	NetworkBytesSent  uint64    `json:"network_bytes_sent"`  // 总发送字节数
-	NetworkBytesRecv  uint64    `json:"network_bytes_recv"`  // 总接收字节数
+	Hostname          string              `json:"hostname"`
+	SessionID         string              `json:"session_id,omitempty"` // UUID session标识
+	LastSeen          time.Time           `json:"last_seen"`
+	Status            string              `json:"status"`
+	CPUPercent        float64             `json:"cpu_percent"`
+	MemoryPercent     float64             `json:"memory_percent"`
+	DiskPercent       float64             `json:"disk_percent"`
+	OS                string              `json:"os"`
+	CPUTemp           float64             `json:"cpu_temp"`
+	GPUTemp           float64             `json:"gpu_temp"` // 保持兼容性，主GPU温度
+	GPUs              []GPUInfo           `json:"gpus"`     // 所有GPU信息
+	MaxTemp           float64             `json:"max_temp"`
+	NetworkSpeedSent  float64             `json:"network_speed_sent"`  // 网络发送速率 (KB/s)
+	NetworkSpeedRecv  float64             `json:"network_speed_recv"`  // 网络接收速率 (KB/s)
+	NetworkBytesSent  uint64              `json:"network_bytes_sent"`  // 总发送字节数
+	NetworkBytesRecv  uint64              `json:"network_bytes_recv"`  // 总接收字节数
+	UserResources     []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type ServerConfig struct {
@@ -276,6 +301,8 @@ func main() {
 	r.HandleFunc("/api/access/{accessKey}/servers", handleGetServersByAccessKey).Methods("GET")
 	r.HandleFunc("/api/access/{accessKey}/server/{hostname}", handleGetServerByAccessKey).Methods("GET")
 	r.HandleFunc("/api/access/{accessKey}/server-by-session/{sessionID}", handleGetServerBySessionID).Methods("GET")
+	r.HandleFunc("/api/access/{accessKey}/user-resources/{hostname}", handleGetUserResourcesByAccessKey).Methods("GET")
+	r.HandleFunc("/api/user-resources/{hostname}", handleGetUserResources).Methods("GET")
 	r.HandleFunc("/api/uuid-count", handleGetUUIDCount).Methods("GET")
 
 	// 下载路由
@@ -407,6 +434,7 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
 			NetworkBytesSent:  server.Latest.Network.BytesSent,
 			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
+			UserResources:     server.Latest.UserResources,
 		})
 	}
 
@@ -602,6 +630,7 @@ func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
 			NetworkBytesSent:  server.Latest.Network.BytesSent,
 			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
+			UserResources:     server.Latest.UserResources,
 		})
 	}
 
@@ -722,6 +751,80 @@ func isServerMatchingAccessKey(serverProjectKey, accessKey string) bool {
 	}
 
 	return false
+}
+
+// handleGetUserResources 获取特定服务器的用户资源使用情况
+func handleGetUserResources(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	hostname := vars["hostname"]
+
+	data.mu.RLock()
+	defer data.mu.RUnlock()
+
+	// 查找服务器
+	server, exists := data.servers[hostname]
+	if !exists {
+		http.Error(w, "服务器不存在", http.StatusNotFound)
+		return
+	}
+
+	// 检查是否有用户资源数据
+	if server.Latest == nil || len(server.Latest.UserResources) == 0 {
+		http.Error(w, "没有用户资源数据", http.StatusNotFound)
+		return
+	}
+
+	// 返回用户资源数据
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(server.Latest.UserResources); err != nil {
+		log.Printf("Error encoding user resources: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// handleGetUserResourcesByAccessKey 根据访问密钥获取用户资源数据
+func handleGetUserResourcesByAccessKey(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accessKey := vars["accessKey"]
+	hostname := vars["hostname"]
+
+	// 验证访问密钥格式
+	if accessKey == "" {
+		http.Error(w, "无效的访问密钥", http.StatusUnauthorized)
+		return
+	}
+
+	data.mu.RLock()
+	defer data.mu.RUnlock()
+
+	// 查找服务器
+	var matchedServer *ServerInfo
+	for _, server := range data.servers {
+		if server.Latest != nil && server.Latest.Hostname == hostname {
+			if isServerMatchingAccessKey(server.Latest.ProjectKey, accessKey) {
+				matchedServer = server
+				break
+			}
+		}
+	}
+
+	if matchedServer == nil {
+		http.Error(w, "服务器不存在或访问被拒绝", http.StatusNotFound)
+		return
+	}
+
+	// 检查是否有用户资源数据
+	if len(matchedServer.Latest.UserResources) == 0 {
+		http.Error(w, "没有用户资源数据", http.StatusNotFound)
+		return
+	}
+
+	// 返回用户资源数据
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(matchedServer.Latest.UserResources); err != nil {
+		log.Printf("Error encoding user resources: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // handleGetUUIDCount 获取UUID数量统计（带缓存）

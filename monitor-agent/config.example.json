@@ -1,5 +1,5 @@
 {
-  "server_url": "https://serverstatus.ltd/api/data",
+  "server_url": "http://localhost:8080/api/data",
   "project_key": "public",
   "server_key": "serverstatus.ltd",
   "report_interval": "5s",

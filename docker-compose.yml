@@ -1,0 +1,81 @@
+services:
+  # Data Server - API服务器
+  data-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: serverstatus-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - PROJECT_KEY=test
+      - SERVER_KEY=test-secret
+    volumes:
+      - ./data-server/web-ui:/app/web-ui
+      - ./data-server/API.md:/app/API.md
+    networks:
+      - serverstatus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/servers"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Monitor Agent - 监控客户端1
+  monitor-agent-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: serverstatus-agent-1
+    hostname: test-server-1
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test
+      - SERVER_KEY=test-secret
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端2
+  monitor-agent-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: serverstatus-agent-2
+    hostname: test-server-2
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test
+      - SERVER_KEY=test-secret
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # 前端UI服务 (简化版，直接使用Python HTTP服务器)
+  frontend:
+    image: python:3.9-slim
+    container_name: serverstatus-frontend
+    ports:
+      - "8081:8000"
+    volumes:
+      - ./frontend-ui:/app:ro
+    working_dir: /app
+    command: python -m http.server 8000
+    networks:
+      - serverstatus
+    depends_on:
+      - data-server
+
+
+networks:
+  serverstatus:
+    driver: bridge

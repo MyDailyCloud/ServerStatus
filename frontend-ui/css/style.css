@@ -2564,6 +2564,74 @@ header h1 {
     color: var(--text-primary);
 }
 
+/* 用户资源样式 */
+.user-resources {
+    padding: 20px;
+    background: var(--system-info-bg);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.user-resources h3 {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.user-resources-table {
+    overflow-x: auto;
+}
+
+.user-resources table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.user-resources table thead {
+    background: var(--system-info-bg);
+}
+
+.user-resources table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.user-resources table td {
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-resources table tr:hover {
+    background: var(--system-info-bg);
+}
+
+.user-resources table td.high {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.user-resources table .processes-cell {
+    font-size: 0.9rem;
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-resources .no-data {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 20px;
+    font-style: italic;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .access-key-form {
@@ -2582,5 +2650,14 @@ header h1 {
     
     .config-item strong {
         min-width: auto;
+    }
+    
+    .user-resources-table {
+        font-size: 0.85rem;
+    }
+    
+    .user-resources table th,
+    .user-resources table td {
+        padding: 8px;
     }
 }

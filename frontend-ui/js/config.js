@@ -1,7 +1,9 @@
 // ServerStatus Frontend Configuration
 const CONFIG = {
-    // API服务器配置
-    API_BASE_URL: 'http://localhost:8080',  // 后端API服务器地址
+    // API服务器配置 - 自动检测Docker环境
+    API_BASE_URL: window.location.port === '8081' 
+        ? 'http://localhost:8080'  // Docker环境
+        : 'http://localhost:8080',  // 默认本地开发环境
     
     // 轮询配置
     POLL_INTERVAL: 3000,                    // 数据轮询间隔(毫秒)
