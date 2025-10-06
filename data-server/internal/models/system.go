@@ -164,3 +164,16 @@ type HistoryData struct {
 	Temperature    float64   `json:"temperature"`
 	TimeBucket     string    `json:"time_bucket,omitempty"` // 用于聚合数据的时间桶
 }
+
+// AccessKey 访问密钥
+type AccessKey struct {
+	Key         string                 `json:"key"`
+	Name        string                 `json:"name"`
+	ProjectKey  string                 `json:"project_key"`
+	Permissions []string               `json:"permissions"`
+	ExpiresAt   *time.Time             `json:"expires_at,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	LastUsedAt  *time.Time             `json:"last_used_at,omitempty"`
+	IsActive    bool                   `json:"is_active"`
+}
