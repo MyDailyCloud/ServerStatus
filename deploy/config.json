@@ -1,0 +1,7 @@
+{
+  "server_url": "https://serverstatus.ltd/api/data",
+  "project_key": "public",
+  "server_key": "serverstatus.ltd",
+  "report_interval": 5000000000,
+  "timeout": 10000000000
+}
