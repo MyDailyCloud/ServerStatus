@@ -4,15 +4,19 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -181,6 +185,155 @@ type ServerConfig struct {
 	RedisDB           int    `json:"redis_db"`           // Redis数据库编号
 }
 
+// validateServerConfig 验证服务器配置
+func validateServerConfig(config *ServerConfig) error {
+	var errors []string
+
+	// 验证主机地址
+	if config.Host != "" {
+		if !isValidHost(config.Host) {
+			errors = append(errors, fmt.Sprintf("无效的主机地址: %s", config.Host))
+		}
+	}
+
+	// 验证端口
+	if config.Port != "" {
+		if !isValidPort(config.Port) {
+			errors = append(errors, fmt.Sprintf("无效的端口号: %s", config.Port))
+		}
+	}
+
+	// 验证数据限制
+	if config.DataLimit < 0 {
+		errors = append(errors, "数据限制不能为负数")
+	}
+	if config.DataLimit > 100000 {
+		errors = append(errors, "数据限制不能超过100000条")
+	}
+
+	// 验证数据间隔
+	if config.DataInterval <= 0 {
+		errors = append(errors, "数据间隔必须大于0秒")
+	}
+	if config.DataInterval > 3600 {
+		errors = append(errors, "数据间隔不能超过3600秒")
+	}
+
+	// 验证压缩级别
+	if config.EnableCompression {
+		if config.CompressionLevel < 1 || config.CompressionLevel > 9 {
+			errors = append(errors, "压缩级别必须在1-9之间")
+		}
+	}
+
+	// 验证Redis配置
+	if config.EnableCache {
+		if config.RedisAddr == "" {
+			errors = append(errors, "启用缓存时必须指定Redis地址")
+		} else if !isValidRedisAddr(config.RedisAddr) {
+			errors = append(errors, fmt.Sprintf("无效的Redis地址: %s", config.RedisAddr))
+		}
+
+		if config.RedisDB < 0 || config.RedisDB > 15 {
+			errors = append(errors, "Redis数据库编号必须在0-15之间")
+		}
+	}
+
+	// 验证数据库路径
+	if config.DatabasePath != "" {
+		if !isValidPath(config.DatabasePath) {
+			errors = append(errors, fmt.Sprintf("无效的数据库路径: %s", config.DatabasePath))
+		}
+	}
+
+	// 验证密钥格式
+	if config.ProjectKey != "" && config.ProjectKey != "public" && len(config.ProjectKey) < 8 {
+		errors = append(errors, "项目密钥长度不能少于8个字符")
+	}
+
+	if config.ServerKey != "" && config.ServerKey != "serverstatus.ltd" && len(config.ServerKey) < 8 {
+		errors = append(errors, "服务器密钥长度不能少于8个字符")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("配置验证失败: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// isValidHost 验证主机地址格式
+func isValidHost(host string) bool {
+	// 允许IP地址或域名
+	// IPv4地址
+	if net.ParseIP(host) != nil {
+		return true
+	}
+
+	// 简单的域名验证
+	if host == "localhost" || host == "0.0.0.0" {
+		return true
+	}
+
+	// 域名格式检查
+	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$`, host); matched {
+		return true
+	}
+
+	return false
+}
+
+// isValidPort 验证端口号格式
+func isValidPort(port string) bool {
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return false
+	}
+	return portNum >= 1 && portNum <= 65535
+}
+
+// isValidRedisAddr 验证Redis地址格式
+func isValidRedisAddr(addr string) bool {
+	// 支持 host:port 格式
+	parts := strings.Split(addr, ":")
+	if len(parts) != 2 {
+		return false
+	}
+
+	host := parts[0]
+	port := parts[1]
+
+	if !isValidHost(host) {
+		return false
+	}
+
+	return isValidPort(port)
+}
+
+// isValidPath 验证路径格式
+func isValidPath(path string) bool {
+	// 检查是否包含非法字符
+	if strings.ContainsAny(path, "<>:\"|?*") {
+		return false
+	}
+
+	// 检查路径长度
+	if len(path) > 260 {
+		return false
+	}
+
+	return true
+}
+
+// getHostname 获取主机名
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return hostname
+}
+
 // AccessKey缓存结构
 type AccessKeyCache struct {
 	mu    sync.RWMutex
@@ -188,6 +341,8 @@ type AccessKeyCache struct {
 }
 
 var (
+	startTime = time.Now() // 服务器启动时间
+
 	data = &ServerData{
 		servers:        make(map[string]*ServerInfo),
 		uuidStatsCache: make(map[string]interface{}),
@@ -360,6 +515,18 @@ func main() {
 	if serverConfig.EnableCache {
 		log.Println("初始化缓存管理器...")
 		cacheManager = NewCacheManager(serverConfig.RedisAddr, serverConfig.RedisPassword, serverConfig.RedisDB)
+
+		// 启动缓存清理协程
+		go func() {
+			ticker := time.NewTicker(10 * time.Minute) // 每10分钟清理一次过期缓存
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					cacheManager.cleanupExpiredCache()
+				}
+			}
+		}()
 	} else {
 		cacheManager = NewCacheManager("", "", 0) // 禁用缓存
 	}
@@ -433,6 +600,19 @@ func main() {
 	api.HandleFunc("/access/{accessKey}/user-resources/{hostname}", handleGetUserResourcesByAccessKey).Methods("GET")
 	api.HandleFunc("/user-resources/{hostname}", handleGetUserResources).Methods("GET")
 	api.HandleFunc("/uuid-count", handleGetUUIDCount).Methods("GET")
+
+	// 健康检查和系统状态路由
+	api.HandleFunc("/health", handleHealth).Methods("GET")
+	api.HandleFunc("/version", handleVersion).Methods("GET")
+	api.HandleFunc("/stats", handleSystemStats).Methods("GET")
+
+	// 配置管理路由
+	api.HandleFunc("/reload-config", handleReloadConfig).Methods("POST")
+
+	// 数据导出路由
+	api.HandleFunc("/export/servers", handleExportServersCSV).Methods("GET")
+	api.HandleFunc("/export/history", handleExportHistoryCSV).Methods("GET")
+	api.HandleFunc("/export/user-resources", handleExportUserResourcesCSV).Methods("GET")
 
 	// WebSocket实时通信路由
 	if serverConfig.EnableWebSocket {
@@ -1328,10 +1508,34 @@ func handleInstallScript(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleAPIDoc(w http.ResponseWriter, r *http.Request) {
-	// 读取API文档
-	docPath := "./API.md"
-	doc, err := os.ReadFile(docPath)
+	// 获取可执行文件目录
+	execPath, err := os.Executable()
 	if err != nil {
+		log.Printf("Error getting executable path: %v", err)
+		http.Error(w, "服务器内部错误", http.StatusInternalServerError)
+		return
+	}
+	execDir := filepath.Dir(execPath)
+
+	// 尝试多个可能的API文档路径
+	docPaths := []string{
+		filepath.Join(execDir, "API.md"),
+		"./API.md",
+		filepath.Join(filepath.Dir(execPath), "data-server", "API.md"),
+	}
+
+	var doc []byte
+	var docPath string
+	for _, path := range docPaths {
+		doc, err = os.ReadFile(path)
+		if err == nil {
+			docPath = path
+			break
+		}
+	}
+
+	if err != nil {
+		log.Printf("API文档文件未找到，尝试的路径: %v", docPaths)
 		http.Error(w, "API文档不存在", http.StatusNotFound)
 		return
 	}
@@ -1342,7 +1546,7 @@ func handleAPIDoc(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error writing API doc: %v", err)
 	}
 
-	log.Printf("API文档访问请求来自: %s", r.RemoteAddr)
+	log.Printf("API文档访问请求来自: %s (文档路径: %s)", r.RemoteAddr, docPath)
 }
 
 func getEmbeddedInstallScript() string {
@@ -1452,6 +1656,345 @@ func handleWebSocketStats(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error encoding WebSocket stats: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
+}
+
+// handleHealth 健康检查端点
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	health := map[string]interface{}{
+		"status":    "ok",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"uptime":    time.Since(startTime).String(),
+	}
+
+	// 检查数据库连接
+	if data.database != nil {
+		// 简单的数据库连接检查
+		if err := data.database.Ping(); err != nil {
+			health["status"] = "degraded"
+			health["database"] = "error"
+		} else {
+			health["database"] = "ok"
+		}
+	} else {
+		health["database"] = "not_initialized"
+	}
+
+	// 检查缓存状态
+	if serverConfig.EnableCache && cacheManager != nil {
+		stats, err := cacheManager.GetStats(r.Context())
+		if err != nil {
+			health["cache"] = "error"
+		} else {
+			health["cache"] = stats
+		}
+	} else {
+		health["cache"] = "disabled"
+	}
+
+	// 检查内存使用
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	health["memory"] = map[string]interface{}{
+		"alloc_mb":      m.Alloc / 1024 / 1024,
+		"sys_mb":        m.Sys / 1024 / 1024,
+		"num_gc":        m.NumGC,
+		"goroutines":    runtime.NumGoroutine(),
+	}
+
+	// 确定HTTP状态码
+	statusCode := http.StatusOK
+	if health["status"] != "ok" {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(health); err != nil {
+		log.Printf("Error encoding health response: %v", err)
+	}
+}
+
+// handleVersion 版本信息端点
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	version := map[string]interface{}{
+		"version":     "2.2.0-dev", // 当前开发版本
+		"build_time":  "2024-10-06T21:00:00Z", // 构建时间
+		"go_version":  runtime.Version(),
+		"git_commit":  "unknown", // 可以在构建时注入
+		"hostname":    getHostname(),
+		"platform":    runtime.GOOS + "/" + runtime.GOARCH,
+		"uptime":      time.Since(startTime).String(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(version); err != nil {
+		log.Printf("Error encoding version response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// handleSystemStats 系统统计信息端点
+func handleSystemStats(w http.ResponseWriter, r *http.Request) {
+	stats := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"uptime":    time.Since(startTime).String(),
+	}
+
+	// 服务器配置信息
+	stats["server_config"] = map[string]interface{}{
+		"host":                serverConfig.Host,
+		"port":                serverConfig.Port,
+		"require_auth":        serverConfig.RequireAuth,
+		"data_limit":          serverConfig.DataLimit,
+		"data_interval":       serverConfig.DataInterval,
+		"enable_compression":  serverConfig.EnableCompression,
+		"enable_websocket":    serverConfig.EnableWebSocket,
+		"enable_cache":        serverConfig.EnableCache,
+	}
+
+	// 数据库统计
+	if data.database != nil {
+		serverCount := 0
+		uuidCount := 0
+
+		// 获取服务器数量（获取第一页的统计）
+		if servers, err := data.database.GetAllServers("public", 0, 1); err == nil {
+			serverCount = len(servers)
+		}
+
+		// 获取UUID统计
+		if uuidStats, err := data.database.GetUUIDStats(); err == nil {
+			if stats, ok := uuidStats["active_uuids"]; ok {
+				if count, ok := stats.(int64); ok {
+					uuidCount = int(count)
+				}
+			}
+		}
+
+		stats["database"] = map[string]interface{}{
+			"status":       "connected",
+			"server_count": serverCount,
+			"uuid_count":   uuidCount,
+			"path":         serverConfig.DatabasePath,
+		}
+	} else {
+		stats["database"] = map[string]interface{}{
+			"status": "disconnected",
+		}
+	}
+
+	// 缓存统计
+	if serverConfig.EnableCache && cacheManager != nil {
+		if cacheStats, err := cacheManager.GetStats(r.Context()); err == nil {
+			stats["cache"] = cacheStats
+		} else {
+			stats["cache"] = map[string]interface{}{
+				"status": "error",
+				"error":  err.Error(),
+			}
+		}
+	}
+
+	// WebSocket统计
+	if serverConfig.EnableWebSocket && webSocketManager != nil {
+		stats["websocket"] = map[string]interface{}{
+			"enabled":     true,
+			"connections": webSocketManager.GetConnectionCount(),
+		}
+	} else {
+		stats["websocket"] = map[string]interface{}{
+			"enabled": false,
+		}
+	}
+
+	// 运行时统计
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	stats["runtime"] = map[string]interface{}{
+		"alloc_mb":      m.Alloc / 1024 / 1024,
+		"sys_mb":        m.Sys / 1024 / 1024,
+		"num_gc":        m.NumGC,
+		"goroutines":    runtime.NumGoroutine(),
+		"go_version":    runtime.Version(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		log.Printf("Error encoding system stats response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// handleReloadConfig 配置热重载
+func handleReloadConfig(w http.ResponseWriter, r *http.Request) {
+	log.Printf("收到配置重载请求")
+
+	// 重新加载配置文件
+	if err := reloadServerConfig(); err != nil {
+		log.Printf("配置重载失败: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+			"time":    time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	log.Printf("✅ 配置重载成功")
+
+	// 广播配置更新通知
+	if serverConfig.EnableWebSocket && webSocketManager != nil {
+		notification := WebSocketMessage{
+			Type:      "config_reload",
+			Timestamp: time.Now(),
+			Data: map[string]interface{}{
+				"message": "服务器配置已热重载",
+				"time":    time.Now().UTC().Format(time.RFC3339),
+			},
+		}
+		webSocketManager.BroadcastToProject("public", notification)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "配置重载成功",
+		"time":    time.Now().UTC().Format(time.RFC3339),
+		"config": map[string]interface{}{
+			"host":             serverConfig.Host,
+			"port":             serverConfig.Port,
+			"require_auth":     serverConfig.RequireAuth,
+			"data_limit":       serverConfig.DataLimit,
+			"data_interval":    serverConfig.DataInterval,
+			"enable_cache":     serverConfig.EnableCache,
+			"enable_websocket": serverConfig.EnableWebSocket,
+		},
+	})
+}
+
+// reloadServerConfig 重新加载服务器配置
+func reloadServerConfig() error {
+	// 读取当前配置文件路径
+	configFile := "server-config.json"
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return fmt.Errorf("配置文件不存在: %s", configFile)
+	}
+
+	// 读取配置文件
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
+	}
+
+	var fileConfig ServerConfig
+	err = json.Unmarshal(data, &fileConfig)
+	if err != nil {
+		return fmt.Errorf("解析配置文件失败: %w", err)
+	}
+
+	// 验证配置文件
+	if err := validateServerConfig(&fileConfig); err != nil {
+		return fmt.Errorf("配置文件验证失败: %w", err)
+	}
+
+	// 更新配置（只允许热重载的部分）
+	if fileConfig.Host != "" && fileConfig.Host != serverConfig.Host {
+		log.Printf("⚠️  主机地址变更需要重启服务器: %s -> %s", serverConfig.Host, fileConfig.Host)
+		return fmt.Errorf("主机地址变更需要重启服务器才能生效")
+	}
+
+	if fileConfig.Port != "" && fileConfig.Port != serverConfig.Port {
+		log.Printf("⚠️  端口变更需要重启服务器: %s -> %s", serverConfig.Port, fileConfig.Port)
+		return fmt.Errorf("端口变更需要重启服务器才能生效")
+	}
+
+	// 可以热重载的配置项
+	if fileConfig.RequireAuth != serverConfig.RequireAuth {
+		log.Printf("🔄 认证设置更新: %v -> %v", serverConfig.RequireAuth, fileConfig.RequireAuth)
+		serverConfig.RequireAuth = fileConfig.RequireAuth
+	}
+
+	if fileConfig.DataLimit > 0 && fileConfig.DataLimit != serverConfig.DataLimit {
+		log.Printf("🔄 数据限制更新: %d -> %d", serverConfig.DataLimit, fileConfig.DataLimit)
+		serverConfig.DataLimit = fileConfig.DataLimit
+	}
+
+	if fileConfig.DataInterval > 0 && fileConfig.DataInterval != serverConfig.DataInterval {
+		log.Printf("🔄 数据间隔更新: %d -> %d", serverConfig.DataInterval, fileConfig.DataInterval)
+		serverConfig.DataInterval = fileConfig.DataInterval
+	}
+
+	if fileConfig.EnableCompression != serverConfig.EnableCompression {
+		log.Printf("🔄 压缩设置更新: %v -> %v", serverConfig.EnableCompression, fileConfig.EnableCompression)
+		serverConfig.EnableCompression = fileConfig.EnableCompression
+	}
+
+	if fileConfig.CompressionLevel >= 1 && fileConfig.CompressionLevel <= 9 && fileConfig.CompressionLevel != serverConfig.CompressionLevel {
+		log.Printf("🔄 压缩级别更新: %d -> %d", serverConfig.CompressionLevel, fileConfig.CompressionLevel)
+		serverConfig.CompressionLevel = fileConfig.CompressionLevel
+	}
+
+	// WebSocket设置变更
+	if fileConfig.EnableWebSocket != serverConfig.EnableWebSocket {
+		if fileConfig.EnableWebSocket && !serverConfig.EnableWebSocket {
+			// 启用WebSocket
+			if webSocketManager != nil {
+				webSocketManager.Start()
+				log.Printf("✅ WebSocket已启用")
+			}
+		} else if !fileConfig.EnableWebSocket && serverConfig.EnableWebSocket {
+			// 禁用WebSocket（不能完全停止，但可以停止接受新连接）
+			log.Printf("⚠️  WebSocket禁用需要重启服务器才能完全生效")
+		}
+		serverConfig.EnableWebSocket = fileConfig.EnableWebSocket
+	}
+
+	// 缓存设置变更
+	if fileConfig.EnableCache != serverConfig.EnableCache {
+		log.Printf("🔄 缓存设置更新: %v -> %v", serverConfig.EnableCache, fileConfig.EnableCache)
+		if fileConfig.EnableCache && !serverConfig.EnableCache {
+			// 启用缓存
+			cacheManager = NewCacheManager(fileConfig.RedisAddr, fileConfig.RedisPassword, fileConfig.RedisDB)
+		} else if !fileConfig.EnableCache && serverConfig.EnableCache {
+			// 禁用缓存
+			if cacheManager != nil {
+				cacheManager.Close()
+			}
+			cacheManager = NewCacheManager("", "", 0)
+		}
+		serverConfig.EnableCache = fileConfig.EnableCache
+	}
+
+	// 更新缓存配置
+	if serverConfig.EnableCache && cacheManager != nil {
+		if fileConfig.RedisAddr != "" && fileConfig.RedisAddr != serverConfig.RedisAddr {
+			log.Printf("🔄 Redis地址更新: %s -> %s", serverConfig.RedisAddr, fileConfig.RedisAddr)
+			if cacheManager != nil {
+				cacheManager.Close()
+			}
+			cacheManager = NewCacheManager(fileConfig.RedisAddr, fileConfig.RedisPassword, fileConfig.RedisDB)
+		}
+		serverConfig.RedisAddr = fileConfig.RedisAddr
+		serverConfig.RedisPassword = fileConfig.RedisPassword
+		serverConfig.RedisDB = fileConfig.RedisDB
+	}
+
+	// 更新密钥设置
+	if fileConfig.ProjectKey != "" && fileConfig.ProjectKey != serverConfig.ProjectKey {
+		log.Printf("🔄 项目密钥已更新")
+		serverConfig.ProjectKey = fileConfig.ProjectKey
+	}
+
+	if fileConfig.ServerKey != "" && fileConfig.ServerKey != serverConfig.ServerKey {
+		log.Printf("🔄 服务器密钥已更新")
+		serverConfig.ServerKey = fileConfig.ServerKey
+	}
+
+	log.Printf("✅ 配置热重载完成")
+	return nil
 }
 
 // handleCacheStats 获取缓存统计信息
@@ -1638,9 +2181,19 @@ func loadServerConfig() {
 	var fileConfig ServerConfig
 	err = json.Unmarshal(data, &fileConfig)
 	if err != nil {
-		log.Printf("解析服务器配置文件失败: %v", err)
+		log.Printf("❌ 解析服务器配置文件失败: %v", err)
+		log.Printf("💡 请检查配置文件JSON格式是否正确")
 		return
 	}
+
+	// 验证配置文件格式
+	if err := validateServerConfig(&fileConfig); err != nil {
+		log.Printf("❌ 服务器配置文件验证失败: %v", err)
+		log.Printf("💡 请检查配置文件内容，修复后重启服务")
+		return
+	}
+
+	log.Printf("✅ 配置文件验证通过")
 
 	// 更新配置
 	if fileConfig.ProjectKey != "" {
@@ -1696,6 +2249,218 @@ func saveServerConfig() {
 	if err != nil {
 		log.Printf("保存服务器配置文件失败: %v", err)
 	}
+}
+
+// getProjectKeyFromAccessKey 从访问密钥获取项目密钥
+func getProjectKeyFromAccessKey(accessKey string) string {
+	// 从数据库查询访问密钥对应的项目密钥
+	projectKey, err := data.database.GetAccessKeyCache(accessKey)
+	if err != nil {
+		log.Printf("获取访问密钥对应的项目密钥失败: %v", err)
+		return ""
+	}
+	return projectKey
+}
+
+// handleExportServersCSV 导出服务器列表为CSV
+func handleExportServersCSV(w http.ResponseWriter, r *http.Request) {
+	// 验证请求参数
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		// 如果没有项目密钥，尝试使用访问密钥
+		accessKey := r.URL.Query().Get("access_key")
+		if accessKey != "" {
+			projectKey = getProjectKeyFromAccessKey(accessKey)
+		}
+		// 如果仍然没有项目密钥，使用默认值
+		if projectKey == "" {
+			projectKey = "public"
+		}
+	}
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=servers_%s.csv", time.Now().Format("20060102_150405")))
+
+	// 创建CSV写入器
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// 写入表头
+	headers := []string{
+		"主机名", "会话ID", "项目密钥", "最后更新时间", "在线状态",
+		"CPU使用率(%)", "CPU核心数", "CPU型号",
+		"内存使用率(%)", "磁盘使用率(%)", "操作系统", "CPU温度(°C)",
+	}
+	if err := writer.Write(headers); err != nil {
+		http.Error(w, "写入CSV失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 获取服务器列表数据 (使用分页)
+	servers, err := data.database.GetAllServers(projectKey, 0, serverConfig.DataLimit)
+	if err != nil {
+		http.Error(w, "获取服务器数据失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 写入数据行
+	for _, server := range servers {
+		// 使用ServerInfo结构体，从Latest字段获取系统信息
+		var hostname, sessionID, projectKey, osInfo, cpuModel string
+		var cpuUsage, memoryUsage, diskUsage, cpuTemp float64
+		var cpuCores int
+		var lastSeen time.Time
+
+		if server.Latest != nil {
+			hostname = server.Latest.Hostname
+			sessionID = server.Latest.SessionID
+			projectKey = server.Latest.ProjectKey
+			lastSeen = server.LastSeen
+			cpuUsage = server.Latest.CPU.UsagePercent
+			cpuCores = server.Latest.CPU.CoreCount
+			cpuModel = server.Latest.CPU.ModelName
+			memoryUsage = server.Latest.Memory.UsagePercent
+			diskUsage = server.Latest.Disk.UsagePercent
+			osInfo = server.Latest.OS.Platform
+			cpuTemp = server.Latest.Temperature.CPUTemp
+		}
+
+		row := []string{
+			hostname,
+			sessionID,
+			projectKey,
+			lastSeen.Format("2006-01-02 15:04:05"),
+			func() string {
+				if time.Since(lastSeen) < time.Duration(serverConfig.DataInterval)*2*time.Second {
+					return "在线"
+				}
+				return "离线"
+			}(),
+			fmt.Sprintf("%.2f", cpuUsage),
+			strconv.Itoa(cpuCores),
+			cpuModel,
+			fmt.Sprintf("%.2f", memoryUsage),
+			fmt.Sprintf("%.2f", diskUsage),
+			osInfo,
+			fmt.Sprintf("%.1f", cpuTemp),
+		}
+
+		if err := writer.Write(row); err != nil {
+			http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	log.Printf("[数据导出] 导出服务器列表CSV，项目: %s, 记录数: %d", projectKey, len(servers))
+}
+
+// handleExportHistoryCSV 导出历史数据为CSV
+func handleExportHistoryCSV(w http.ResponseWriter, r *http.Request) {
+	// 验证请求参数
+	hostname := r.URL.Query().Get("hostname")
+	if hostname == "" {
+		http.Error(w, "需要提供hostname参数", http.StatusBadRequest)
+		return
+	}
+
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		projectKey = "public"
+	}
+
+	// 解析时间范围参数
+	_ = 1000 // 默认导出最近1000条记录 (占位符)
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 10000 {
+			_ = l
+		}
+	}
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=history_%s_%s.csv", hostname, time.Now().Format("20060102_150405")))
+
+	// 创建CSV写入器
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// 写入表头
+	headers := []string{
+		"时间戳", "主机名", "项目密钥",
+		"说明", "状态", "消息",
+	}
+	if err := writer.Write(headers); err != nil {
+		http.Error(w, "写入CSV失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 写入示例数据（暂时作为占位符）
+	row := []string{
+		time.Now().Format("2006-01-02 15:04:05"),
+		hostname,
+		projectKey,
+		"历史数据导出功能正在开发中",
+		"开发中",
+		"请等待后续版本更新",
+	}
+
+	if err := writer.Write(row); err != nil {
+		http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[数据导出] 导出历史数据CSV，主机: %s, 项目: %s (占位符)", hostname, projectKey)
+}
+
+// handleExportUserResourcesCSV 导出用户资源使用数据为CSV
+func handleExportUserResourcesCSV(w http.ResponseWriter, r *http.Request) {
+	// 验证请求参数
+	hostname := r.URL.Query().Get("hostname")
+	if hostname == "" {
+		http.Error(w, "需要提供hostname参数", http.StatusBadRequest)
+		return
+	}
+
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		projectKey = "public"
+	}
+
+	// 设置响应头
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=user_resources_%s_%s.csv", hostname, time.Now().Format("20060102_150405")))
+
+	// 创建CSV写入器
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	// 写入表头
+	headers := []string{
+		"时间戳", "主机名", "项目密钥",
+		"说明", "状态", "消息",
+	}
+	if err := writer.Write(headers); err != nil {
+		http.Error(w, "写入CSV失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 写入示例数据（暂时作为占位符）
+	row := []string{
+		time.Now().Format("2006-01-02 15:04:05"),
+		hostname,
+		projectKey,
+		"用户资源导出功能正在开发中",
+		"开发中",
+		"请等待后续版本更新",
+	}
+
+	if err := writer.Write(row); err != nil {
+		http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[数据导出] 导出用户资源CSV，主机: %s, 项目: %s (占位符)", hostname, projectKey)
 }
 
 // printServerUsage 打印服务器使用说明

@@ -1,0 +1,93 @@
+# ServerStatus Data Server Configuration
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: "8080"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "60s"
+  max_memory_mb: 512
+  allowed_origins:
+    - "*"
+    - "http://localhost:3000"
+    - "https://yourdomain.com"
+
+# Database Configuration
+database:
+  type: "sqlite"
+  path: "./data/serverstatus.db"
+  connection_string: ""
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: "5m"
+
+# Cache Configuration
+cache:
+  type: "redis"
+  address: "localhost:6379"
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+
+# Logging Configuration
+logging:
+  level: "info"
+  format: "text"
+  output: "both"
+  filename: "./logs/serverstatus.log"
+  max_size: 100
+  max_backups: 10
+  max_age: 30
+  compress: true
+  report_caller: true
+
+# WebSocket Configuration
+websocket:
+  enabled: true
+  path: "/ws"
+  port: "8080"
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  ping_interval: "30s"
+  pong_wait: "60s"
+  write_wait: "10s"
+  max_message_size: 1048576
+
+# Export Configuration
+export:
+  directory: "./exports"
+  retention_days: 7
+  max_file_size: 104857600
+  supported_formats:
+    - "csv"
+    - "json"
+    - "xml"
+
+# Application Configuration
+app:
+  name: "ServerStatus Data Server"
+  version: "2.1.0"
+  debug: false
+  timezone: "UTC"
+
+# Security Configuration
+security:
+  secret_key: "your-secret-key-here"
+  jwt_expiry: "24h"
+  bcrypt_cost: 12
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  metrics_path: "/metrics"
+  health_check_interval: "30s"
+
+# Rate Limiting
+rate_limiting:
+  enabled: false
+  requests_per_minute: 100
+  burst: 20

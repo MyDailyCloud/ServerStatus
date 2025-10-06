@@ -197,6 +197,13 @@ func (m *WebSocketManager) BroadcastToProject(projectKey string, message WebSock
 	log.Printf("向项目组 %s 广播消息，发送到 %d 个客户端", projectKey, sent)
 }
 
+// GetConnectionCount 获取当前连接数
+func (m *WebSocketManager) GetConnectionCount() int {
+	m.clientsMutex.RLock()
+	defer m.clientsMutex.RUnlock()
+	return len(m.clients)
+}
+
 // GetStats 获取WebSocket统计信息
 func (m *WebSocketManager) GetStats() map[string]interface{} {
 	m.clientsMutex.RLock()
