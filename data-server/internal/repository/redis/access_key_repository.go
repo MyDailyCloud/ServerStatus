@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 	"github.com/kanshan/ServerStatus/data-server/pkg/utils"
-	"github.com/go-redis/redis/v8"
 )
 
 // RedisAccessKeyRepository Redis访问密钥仓库实现
@@ -35,11 +35,11 @@ func (r *RedisAccessKeyRepository) buildKey(key string) string {
 
 // AccessKeyInfo 访问密钥信息
 type AccessKeyInfo struct {
-	CacheKey    string    `json:"cache_key"`
-	ProjectKey  string    `json:"project_key"`
-	CreatedAt   time.Time `json:"created_at"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	IsActive    bool      `json:"is_active"`
+	CacheKey   string    `json:"cache_key"`
+	ProjectKey string    `json:"project_key"`
+	CreatedAt  time.Time `json:"created_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	IsActive   bool      `json:"is_active"`
 }
 
 // SaveAccessKey 保存访问密钥
@@ -80,9 +80,9 @@ func (r *RedisAccessKeyRepository) SaveAccessKey(ctx context.Context, cacheKey, 
 	}
 
 	r.logger.WithFields(map[string]interface{}{
-		"access_key": accessKey[:8] + "...",
+		"access_key":  accessKey[:8] + "...",
 		"project_key": projectKey,
-		"ttl":        ttl,
+		"ttl":         ttl,
 	}).Info("Access key saved successfully")
 
 	return nil

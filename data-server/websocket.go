@@ -21,11 +21,11 @@ type WebSocketManager struct {
 
 // Client WebSocket客户端
 type Client struct {
-	manager   *WebSocketManager
-	conn      *websocket.Conn
-	send      chan []byte
+	manager    *WebSocketManager
+	conn       *websocket.Conn
+	send       chan []byte
 	projectKey string // 客户端所属的项目密钥
-	connected time.Time
+	connected  time.Time
 }
 
 // WebSocketMessage WebSocket消息结构
@@ -218,8 +218,8 @@ func (m *WebSocketManager) GetStats() map[string]interface{} {
 
 	return map[string]interface{}{
 		"total_connections": totalConnections,
-		"project_stats":    projectStats,
-		"timestamp":        time.Now(),
+		"project_stats":     projectStats,
+		"timestamp":         time.Now(),
 	}
 }
 

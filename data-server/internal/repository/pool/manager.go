@@ -36,12 +36,12 @@ type PoolStats struct {
 
 // ConnectionPool 连接池实现
 type ConnectionPool struct {
-	config          *config.DatabaseConfig
-	logger          logger.Logger
-	maxConnections  int
-	idleTimeout     time.Duration
-	lifetime        time.Duration
-	healthInterval  time.Duration
+	config         *config.DatabaseConfig
+	logger         logger.Logger
+	maxConnections int
+	idleTimeout    time.Duration
+	lifetime       time.Duration
+	healthInterval time.Duration
 
 	mu              sync.RWMutex
 	connections     []*sql.DB
@@ -369,8 +369,8 @@ func (p *ConnectionPool) StartHealthCheck() {
 
 // DatabasePoolManager 数据库连接池管理器
 type DatabasePoolManager struct {
-	pools map[string]Manager
-	mu    sync.RWMutex
+	pools  map[string]Manager
+	mu     sync.RWMutex
 	logger logger.Logger
 }
 

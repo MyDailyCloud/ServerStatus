@@ -124,12 +124,12 @@ type WebSocketService interface {
 
 // ServerFilter 服务器查询过滤器
 type ServerFilter struct {
-	ProjectKey   string    `json:"project_key"`
-	Hostname     string    `json:"hostname"`
-	Status       string    `json:"status"` // online, offline, all
-	OS           string    `json:"os"`
-	Tags         []string  `json:"tags"`
-	LastSeenAfter *time.Time `json:"last_seen_after"`
+	ProjectKey     string     `json:"project_key"`
+	Hostname       string     `json:"hostname"`
+	Status         string     `json:"status"` // online, offline, all
+	OS             string     `json:"os"`
+	Tags           []string   `json:"tags"`
+	LastSeenAfter  *time.Time `json:"last_seen_after"`
 	LastSeenBefore *time.Time `json:"last_seen_before"`
 }
 
@@ -143,19 +143,19 @@ type Pagination struct {
 
 // ProjectStats 项目统计信息
 type ProjectStats struct {
-	TotalServers    int     `json:"total_servers"`
-	OnlineServers   int     `json:"online_servers"`
-	OfflineServers  int     `json:"offline_servers"`
-	AvgCPUUsage     float64 `json:"avg_cpu_usage"`
-	AvgMemoryUsage  float64 `json:"avg_memory_usage"`
-	AvgDiskUsage    float64 `json:"avg_disk_usage"`
-	LastUpdateTime  time.Time `json:"last_update_time"`
+	TotalServers   int       `json:"total_servers"`
+	OnlineServers  int       `json:"online_servers"`
+	OfflineServers int       `json:"offline_servers"`
+	AvgCPUUsage    float64   `json:"avg_cpu_usage"`
+	AvgMemoryUsage float64   `json:"avg_memory_usage"`
+	AvgDiskUsage   float64   `json:"avg_disk_usage"`
+	LastUpdateTime time.Time `json:"last_update_time"`
 }
 
 // ExportRequest 导出请求
 type ExportRequest struct {
-	Format     string            `json:"format"`     // csv, json, xml
-	Type       string            `json:"type"`       // servers, history, user_resources
+	Format     string            `json:"format"` // csv, json, xml
+	Type       string            `json:"type"`   // servers, history, user_resources
 	ProjectKey string            `json:"project_key"`
 	Hostname   string            `json:"hostname"`
 	Filters    map[string]string `json:"filters"`
@@ -175,15 +175,15 @@ type ExportResult struct {
 
 // ExportPreview 导出预览
 type ExportPreview struct {
-	Headers     []string          `json:"headers"`
-	SampleRows  [][]string        `json:"sample_rows"`
-	TotalRows   int               `json:"total_rows"`
-	EstimatedSize int64           `json:"estimated_size"`
+	Headers       []string   `json:"headers"`
+	SampleRows    [][]string `json:"sample_rows"`
+	TotalRows     int        `json:"total_rows"`
+	EstimatedSize int64      `json:"estimated_size"`
 }
 
 // AuthRequest 认证请求
 type AuthRequest struct {
-	Type        string `json:"type"`        // server_key, access_key
+	Type        string `json:"type"` // server_key, access_key
 	Credentials string `json:"credentials"`
 	ProjectKey  string `json:"project_key"`
 	Action      string `json:"action"`
@@ -192,39 +192,39 @@ type AuthRequest struct {
 
 // AuthResult 认证结果
 type AuthResult struct {
-	Valid      bool   `json:"valid"`
-	ProjectKey string `json:"project_key"`
-	Role       string `json:"role"`
+	Valid      bool       `json:"valid"`
+	ProjectKey string     `json:"project_key"`
+	Role       string     `json:"role"`
 	ExpiresAt  *time.Time `json:"expires_at"`
-	Message    string `json:"message"`
+	Message    string     `json:"message"`
 }
 
 // HealthStatus 健康状态
 type HealthStatus struct {
-	Status     string                      `json:"status"`     // healthy, degraded, unhealthy
-	Uptime     time.Duration               `json:"uptime"`
-	Version    string                      `json:"version"`
-	Timestamp  time.Time                   `json:"timestamp"`
-	Components map[string]ComponentHealth  `json:"components"`
+	Status     string                     `json:"status"` // healthy, degraded, unhealthy
+	Uptime     time.Duration              `json:"uptime"`
+	Version    string                     `json:"version"`
+	Timestamp  time.Time                  `json:"timestamp"`
+	Components map[string]ComponentHealth `json:"components"`
 }
 
 // ComponentHealth 组件健康状态
 type ComponentHealth struct {
-	Status  string                 `json:"status"`  // healthy, degraded, unhealthy
+	Status  string                 `json:"status"` // healthy, degraded, unhealthy
 	Message string                 `json:"message"`
 	Details map[string]interface{} `json:"details"`
 }
 
 // SystemStats 系统统计
 type SystemStats struct {
-	CPUUsage     float64            `json:"cpu_usage"`
-	MemoryUsage  float64            `json:"memory_usage"`
-	DiskUsage    float64            `json:"disk_usage"`
-	Goroutines   int                `json:"goroutines"`
-	HeapAlloc    uint64             `json:"heap_alloc"`
-	Connections  int                `json:"connections"`
-	Requests     map[string]int64   `json:"requests"`
-	Timestamp    time.Time          `json:"timestamp"`
+	CPUUsage    float64          `json:"cpu_usage"`
+	MemoryUsage float64          `json:"memory_usage"`
+	DiskUsage   float64          `json:"disk_usage"`
+	Goroutines  int              `json:"goroutines"`
+	HeapAlloc   uint64           `json:"heap_alloc"`
+	Connections int              `json:"connections"`
+	Requests    map[string]int64 `json:"requests"`
+	Timestamp   time.Time        `json:"timestamp"`
 }
 
 // ConfigVersion 配置版本
@@ -237,18 +237,18 @@ type ConfigVersion struct {
 
 // WebSocketConnection WebSocket连接
 type WebSocketConnection struct {
-	ID         string    `json:"id"`
-	ProjectKey string    `json:"project_key"`
-	RemoteAddr string    `json:"remote_addr"`
-	UserAgent  string    `json:"user_agent"`
+	ID          string    `json:"id"`
+	ProjectKey  string    `json:"project_key"`
+	RemoteAddr  string    `json:"remote_addr"`
+	UserAgent   string    `json:"user_agent"`
 	ConnectedAt time.Time `json:"connected_at"`
-	LastPing   time.Time `json:"last_ping"`
+	LastPing    time.Time `json:"last_ping"`
 }
 
 // WebSocketStats WebSocket统计信息
 type WebSocketStats struct {
-	TotalConnections   int `json:"total_connections"`
-	ActiveConnections  int `json:"active_connections"`
-	TotalMessages      int64 `json:"total_messages"`
-	MessagesPerSecond  float64 `json:"messages_per_second"`
+	TotalConnections  int     `json:"total_connections"`
+	ActiveConnections int     `json:"active_connections"`
+	TotalMessages     int64   `json:"total_messages"`
+	MessagesPerSecond float64 `json:"messages_per_second"`
 }

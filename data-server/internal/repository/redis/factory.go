@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/kanshan/ServerStatus/data-server/internal/config"
 	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
-	"github.com/go-redis/redis/v8"
 )
 
 // RedisRepositoryFactory Redis仓库工厂
@@ -65,10 +65,10 @@ func parseDuration(str string, defaultDuration time.Duration) time.Duration {
 // NewRepository 创建完整的仓库实例
 func (f *RedisRepositoryFactory) NewRepository() (repository.Repository, error) {
 	return &RedisRepository{
-		client:        f.client,
-		logger:        f.logger,
-		prefix:        f.prefix,
-		cacheRepository: NewRedisCacheRepository(f.client, f.logger, f.prefix),
+		client:              f.client,
+		logger:              f.logger,
+		prefix:              f.prefix,
+		cacheRepository:     NewRedisCacheRepository(f.client, f.logger, f.prefix),
 		accessKeyRepository: NewRedisAccessKeyRepository(f.client, f.logger, f.prefix),
 	}, nil
 }
@@ -262,12 +262,12 @@ func (m *RedisConnectionManager) WatchHealth(ctx context.Context, interval time.
 
 // RedisPoolStats Redis连接池统计
 type RedisPoolStats struct {
-	Hits         uint64 `json:"hits"`
-	Misses       uint64 `json:"misses"`
-	Timeouts     uint64 `json:"timeouts"`
-	TotalConns   uint64 `json:"total_conns"`
-	IdleConns    uint64 `json:"idle_conns"`
-	StaleConns   uint64 `json:"stale_conns"`
+	Hits       uint64 `json:"hits"`
+	Misses     uint64 `json:"misses"`
+	Timeouts   uint64 `json:"timeouts"`
+	TotalConns uint64 `json:"total_conns"`
+	IdleConns  uint64 `json:"idle_conns"`
+	StaleConns uint64 `json:"stale_conns"`
 }
 
 // GetPoolStats 获取连接池统计信息

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 	"github.com/kanshan/ServerStatus/data-server/pkg/utils"
+	"gopkg.in/yaml.v3"
 )
 
 // Loader 配置加载器接口

@@ -23,24 +23,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/NYTimes/gziphandler"
+	"github.com/gorilla/mux"
 )
 
 type SystemInfo struct {
-	Hostname      string              `json:"hostname"`
-	SessionID     string              `json:"session_id,omitempty"` // UUID session标识
-	Timestamp     time.Time           `json:"timestamp"`
-	CPU           CPUInfo             `json:"cpu"`
-	Memory        MemInfo             `json:"memory"`
-	Disk          DiskInfo            `json:"disk"`
-	Network       NetInfo             `json:"network"`
-	GPU           GPUInfo             `json:"gpu"`  // 保持兼容性，主GPU信息
-	GPUs          []GPUInfo           `json:"gpus"` // 所有GPU信息
-	OS            OSInfo              `json:"os"`
-	Temperature   TempInfo            `json:"temperature"`
-	ProjectKey    string              `json:"project_key,omitempty"`
-	UserResources []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
+	Hostname      string             `json:"hostname"`
+	SessionID     string             `json:"session_id,omitempty"` // UUID session标识
+	Timestamp     time.Time          `json:"timestamp"`
+	CPU           CPUInfo            `json:"cpu"`
+	Memory        MemInfo            `json:"memory"`
+	Disk          DiskInfo           `json:"disk"`
+	Network       NetInfo            `json:"network"`
+	GPU           GPUInfo            `json:"gpu"`  // 保持兼容性，主GPU信息
+	GPUs          []GPUInfo          `json:"gpus"` // 所有GPU信息
+	OS            OSInfo             `json:"os"`
+	Temperature   TempInfo           `json:"temperature"`
+	ProjectKey    string             `json:"project_key,omitempty"`
+	UserResources []UserResourceInfo `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type CPUInfo struct {
@@ -64,13 +64,13 @@ type DiskInfo struct {
 }
 
 type NetInfo struct {
-	BytesSent    uint64        `json:"bytes_sent"`     // 总发送字节数
-	BytesRecv    uint64        `json:"bytes_recv"`     // 总接收字节数
-	PacketsSent  uint64        `json:"packets_sent"`   // 总发送包数
-	PacketsRecv  uint64        `json:"packets_recv"`   // 总接收包数
-	SpeedSent    float64       `json:"speed_sent"`     // 发送速率 (KB/s)
-	SpeedRecv    float64       `json:"speed_recv"`     // 接收速率 (KB/s)
-	Interfaces   []NetInterface `json:"interfaces"`     // 网卡详细信息
+	BytesSent   uint64         `json:"bytes_sent"`   // 总发送字节数
+	BytesRecv   uint64         `json:"bytes_recv"`   // 总接收字节数
+	PacketsSent uint64         `json:"packets_sent"` // 总发送包数
+	PacketsRecv uint64         `json:"packets_recv"` // 总接收包数
+	SpeedSent   float64        `json:"speed_sent"`   // 发送速率 (KB/s)
+	SpeedRecv   float64        `json:"speed_recv"`   // 接收速率 (KB/s)
+	Interfaces  []NetInterface `json:"interfaces"`   // 网卡详细信息
 }
 
 type NetInterface struct {
@@ -148,23 +148,23 @@ type ServerInfo struct {
 }
 
 type ServerStatus struct {
-	Hostname          string              `json:"hostname"`
-	SessionID         string              `json:"session_id,omitempty"` // UUID session标识
-	LastSeen          time.Time           `json:"last_seen"`
-	Status            string              `json:"status"`
-	CPUPercent        float64             `json:"cpu_percent"`
-	MemoryPercent     float64             `json:"memory_percent"`
-	DiskPercent       float64             `json:"disk_percent"`
-	OS                string              `json:"os"`
-	CPUTemp           float64             `json:"cpu_temp"`
-	GPUTemp           float64             `json:"gpu_temp"` // 保持兼容性，主GPU温度
-	GPUs              []GPUInfo           `json:"gpus"`     // 所有GPU信息
-	MaxTemp           float64             `json:"max_temp"`
-	NetworkSpeedSent  float64             `json:"network_speed_sent"`  // 网络发送速率 (KB/s)
-	NetworkSpeedRecv  float64             `json:"network_speed_recv"`  // 网络接收速率 (KB/s)
-	NetworkBytesSent  uint64              `json:"network_bytes_sent"`  // 总发送字节数
-	NetworkBytesRecv  uint64              `json:"network_bytes_recv"`  // 总接收字节数
-	UserResources     []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
+	Hostname         string             `json:"hostname"`
+	SessionID        string             `json:"session_id,omitempty"` // UUID session标识
+	LastSeen         time.Time          `json:"last_seen"`
+	Status           string             `json:"status"`
+	CPUPercent       float64            `json:"cpu_percent"`
+	MemoryPercent    float64            `json:"memory_percent"`
+	DiskPercent      float64            `json:"disk_percent"`
+	OS               string             `json:"os"`
+	CPUTemp          float64            `json:"cpu_temp"`
+	GPUTemp          float64            `json:"gpu_temp"` // 保持兼容性，主GPU温度
+	GPUs             []GPUInfo          `json:"gpus"`     // 所有GPU信息
+	MaxTemp          float64            `json:"max_temp"`
+	NetworkSpeedSent float64            `json:"network_speed_sent"`       // 网络发送速率 (KB/s)
+	NetworkSpeedRecv float64            `json:"network_speed_recv"`       // 网络接收速率 (KB/s)
+	NetworkBytesSent uint64             `json:"network_bytes_sent"`       // 总发送字节数
+	NetworkBytesRecv uint64             `json:"network_bytes_recv"`       // 总接收字节数
+	UserResources    []UserResourceInfo `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type ServerConfig struct {
@@ -173,11 +173,11 @@ type ServerConfig struct {
 	Host              string `json:"host"`
 	Port              string `json:"port"`
 	RequireAuth       bool   `json:"require_auth"`
-	DataLimit         int    `json:"data_limit"`      // 数据保留条数限制
-	DataInterval      int    `json:"data_interval"`   // 数据上报间隔(秒)
-	DatabasePath      string `json:"database_path"`   // 数据库文件路径
+	DataLimit         int    `json:"data_limit"`         // 数据保留条数限制
+	DataInterval      int    `json:"data_interval"`      // 数据上报间隔(秒)
+	DatabasePath      string `json:"database_path"`      // 数据库文件路径
 	EnableCompression bool   `json:"enable_compression"` // 启用gzip压缩
-	CompressionLevel  int    `json:"compression_level"`   // 压缩级别(1-9)
+	CompressionLevel  int    `json:"compression_level"`  // 压缩级别(1-9)
 	EnableWebSocket   bool   `json:"enable_websocket"`   // 启用WebSocket实时推送
 	EnableCache       bool   `json:"enable_cache"`       // 启用Redis缓存
 	RedisAddr         string `json:"redis_addr"`         // Redis地址
@@ -356,16 +356,16 @@ var (
 		Host:              "0.0.0.0",
 		Port:              "8080",
 		RequireAuth:       false,
-		DataLimit:         1000, // 默认保留1000条数据
-		DataInterval:      5,    // 默认5秒间隔
+		DataLimit:         1000,                     // 默认保留1000条数据
+		DataInterval:      5,                        // 默认5秒间隔
 		DatabasePath:      "./data/serverstatus.db", // 数据库路径
-		EnableCompression: true, // 默认启用压缩
-		CompressionLevel:  6,    // 默认压缩级别
-		EnableWebSocket:   true, // 默认启用WebSocket
-		EnableCache:       true, // 默认启用缓存
-		RedisAddr:         "localhost:6379", // 默认Redis地址
-		RedisPassword:     "",    // 默认无密码
-		RedisDB:           0,     // 默认数据库
+		EnableCompression: true,                     // 默认启用压缩
+		CompressionLevel:  6,                        // 默认压缩级别
+		EnableWebSocket:   true,                     // 默认启用WebSocket
+		EnableCache:       true,                     // 默认启用缓存
+		RedisAddr:         "localhost:6379",         // 默认Redis地址
+		RedisPassword:     "",                       // 默认无密码
+		RedisDB:           0,                        // 默认数据库
 	}
 
 	// 全局AccessKey缓存
@@ -374,22 +374,22 @@ var (
 	}
 
 	// 命令行参数
-	projectKey         = flag.String("key", "", "项目认证密钥")
-	serverKey          = flag.String("server-key", "", "服务器密钥 (用于双密钥认证)")
-	host               = flag.String("host", "0.0.0.0", "服务器绑定IP地址")
-	port               = flag.String("port", "8080", "服务器端口")
-	configFile         = flag.String("config", "server-config.json", "服务器配置文件路径")
-	requireAuth        = flag.Bool("auth", false, "是否要求API密钥认证")
-	dataLimit          = flag.Int("data-limit", 1000, "数据保留条数限制")
-	dataInterval       = flag.Int("data-interval", 5, "推荐的数据上报间隔(秒)")
-	enableCompression  = flag.Bool("compression", true, "启用gzip压缩")
-	compressionLevel   = flag.Int("compression-level", 6, "gzip压缩级别(1-9)")
-	enableWebSocket    = flag.Bool("websocket", true, "启用WebSocket实时推送")
-	enableCache        = flag.Bool("cache", true, "启用Redis缓存")
-	redisAddr          = flag.String("redis", "localhost:6379", "Redis服务器地址")
-	redisPassword      = flag.String("redis-password", "", "Redis服务器密码")
-	redisDB            = flag.Int("redis-db", 0, "Redis数据库编号")
-	showHelp           = flag.Bool("help", false, "显示帮助信息")
+	projectKey        = flag.String("key", "", "项目认证密钥")
+	serverKey         = flag.String("server-key", "", "服务器密钥 (用于双密钥认证)")
+	host              = flag.String("host", "0.0.0.0", "服务器绑定IP地址")
+	port              = flag.String("port", "8080", "服务器端口")
+	configFile        = flag.String("config", "server-config.json", "服务器配置文件路径")
+	requireAuth       = flag.Bool("auth", false, "是否要求API密钥认证")
+	dataLimit         = flag.Int("data-limit", 1000, "数据保留条数限制")
+	dataInterval      = flag.Int("data-interval", 5, "推荐的数据上报间隔(秒)")
+	enableCompression = flag.Bool("compression", true, "启用gzip压缩")
+	compressionLevel  = flag.Int("compression-level", 6, "gzip压缩级别(1-9)")
+	enableWebSocket   = flag.Bool("websocket", true, "启用WebSocket实时推送")
+	enableCache       = flag.Bool("cache", true, "启用Redis缓存")
+	redisAddr         = flag.String("redis", "localhost:6379", "Redis服务器地址")
+	redisPassword     = flag.String("redis-password", "", "Redis服务器密码")
+	redisDB           = flag.Int("redis-db", 0, "Redis数据库编号")
+	showHelp          = flag.Bool("help", false, "显示帮助信息")
 )
 
 // 移除嵌入的前端文件系统，实现前后端分离
@@ -771,23 +771,23 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 
 		// 构造服务器状态
 		serverStatus := ServerStatus{
-			Hostname:          info.Hostname,
-			SessionID:         info.SessionID,
-			LastSeen:          time.Now(),
-			Status:            "online",
-			CPUPercent:        info.CPU.UsagePercent,
-			MemoryPercent:     info.Memory.UsagePercent,
-			DiskPercent:       info.Disk.UsagePercent,
-			OS:                info.OS.Platform,
-			CPUTemp:           info.Temperature.CPUTemp,
-			GPUTemp:           info.Temperature.GPUTemp,
-			GPUs:              info.GPUs,
-			MaxTemp:           info.Temperature.MaxTemp,
-			NetworkSpeedSent:  info.Network.SpeedSent,
-			NetworkSpeedRecv:  info.Network.SpeedRecv,
-			NetworkBytesSent:  info.Network.BytesSent,
-			NetworkBytesRecv:  info.Network.BytesRecv,
-			UserResources:     info.UserResources,
+			Hostname:         info.Hostname,
+			SessionID:        info.SessionID,
+			LastSeen:         time.Now(),
+			Status:           "online",
+			CPUPercent:       info.CPU.UsagePercent,
+			MemoryPercent:    info.Memory.UsagePercent,
+			DiskPercent:      info.Disk.UsagePercent,
+			OS:               info.OS.Platform,
+			CPUTemp:          info.Temperature.CPUTemp,
+			GPUTemp:          info.Temperature.GPUTemp,
+			GPUs:             info.GPUs,
+			MaxTemp:          info.Temperature.MaxTemp,
+			NetworkSpeedSent: info.Network.SpeedSent,
+			NetworkSpeedRecv: info.Network.SpeedRecv,
+			NetworkBytesSent: info.Network.BytesSent,
+			NetworkBytesRecv: info.Network.BytesRecv,
+			UserResources:    info.UserResources,
 		}
 
 		// 广播更新到所有WebSocket客户端
@@ -867,25 +867,25 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 					}
 
 					servers = append(servers, ServerStatus{
-						Hostname:          server.Latest.Hostname,
-						SessionID:         server.Latest.SessionID,
-						LastSeen:          server.LastSeen,
-						Status:            status,
-						CPUPercent:        server.Latest.CPU.UsagePercent,
-						MemoryPercent:     server.Latest.Memory.UsagePercent,
-						DiskPercent:       server.Latest.Disk.UsagePercent,
-						OS:                server.Latest.OS.Platform,
-						CPUTemp:           server.Latest.Temperature.CPUTemp,
-						GPUTemp:           server.Latest.Temperature.GPUTemp,
-						GPUs:              server.Latest.GPUs,
-						MaxTemp:           server.Latest.Temperature.MaxTemp,
-						NetworkSpeedSent:  server.Latest.Network.SpeedSent,
-						NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
-						NetworkBytesSent:  server.Latest.Network.BytesSent,
-						NetworkBytesRecv:  server.Latest.Network.BytesRecv,
-						UserResources:     server.Latest.UserResources,
+						Hostname:         server.Latest.Hostname,
+						SessionID:        server.Latest.SessionID,
+						LastSeen:         server.LastSeen,
+						Status:           status,
+						CPUPercent:       server.Latest.CPU.UsagePercent,
+						MemoryPercent:    server.Latest.Memory.UsagePercent,
+						DiskPercent:      server.Latest.Disk.UsagePercent,
+						OS:               server.Latest.OS.Platform,
+						CPUTemp:          server.Latest.Temperature.CPUTemp,
+						GPUTemp:          server.Latest.Temperature.GPUTemp,
+						GPUs:             server.Latest.GPUs,
+						MaxTemp:          server.Latest.Temperature.MaxTemp,
+						NetworkSpeedSent: server.Latest.Network.SpeedSent,
+						NetworkSpeedRecv: server.Latest.Network.SpeedRecv,
+						NetworkBytesSent: server.Latest.Network.BytesSent,
+						NetworkBytesRecv: server.Latest.Network.BytesRecv,
+						UserResources:    server.Latest.UserResources,
 					})
-			}
+				}
 
 				// 获取总数用于分页
 				totalCount, _ = data.database.GetServerCount(projectKey)
@@ -946,23 +946,23 @@ func getServersFromMemory(projectKey string, now time.Time) []ServerStatus {
 		}
 
 		servers = append(servers, ServerStatus{
-			Hostname:          server.Latest.Hostname,
-			SessionID:         server.Latest.SessionID,
-			LastSeen:          server.LastSeen,
-			Status:            status,
-			CPUPercent:        server.Latest.CPU.UsagePercent,
-			MemoryPercent:     server.Latest.Memory.UsagePercent,
-			DiskPercent:       server.Latest.Disk.UsagePercent,
-			OS:                server.Latest.OS.Platform,
-			CPUTemp:           server.Latest.Temperature.CPUTemp,
-			GPUTemp:           server.Latest.Temperature.GPUTemp,
-			GPUs:              server.Latest.GPUs,
-			MaxTemp:           server.Latest.Temperature.MaxTemp,
-			NetworkSpeedSent:  server.Latest.Network.SpeedSent,
-			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
-			NetworkBytesSent:  server.Latest.Network.BytesSent,
-			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
-			UserResources:     server.Latest.UserResources,
+			Hostname:         server.Latest.Hostname,
+			SessionID:        server.Latest.SessionID,
+			LastSeen:         server.LastSeen,
+			Status:           status,
+			CPUPercent:       server.Latest.CPU.UsagePercent,
+			MemoryPercent:    server.Latest.Memory.UsagePercent,
+			DiskPercent:      server.Latest.Disk.UsagePercent,
+			OS:               server.Latest.OS.Platform,
+			CPUTemp:          server.Latest.Temperature.CPUTemp,
+			GPUTemp:          server.Latest.Temperature.GPUTemp,
+			GPUs:             server.Latest.GPUs,
+			MaxTemp:          server.Latest.Temperature.MaxTemp,
+			NetworkSpeedSent: server.Latest.Network.SpeedSent,
+			NetworkSpeedRecv: server.Latest.Network.SpeedRecv,
+			NetworkBytesSent: server.Latest.Network.BytesSent,
+			NetworkBytesRecv: server.Latest.Network.BytesRecv,
+			UserResources:    server.Latest.UserResources,
 		})
 	}
 
@@ -1133,23 +1133,23 @@ func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 		}
 
 		servers = append(servers, ServerStatus{
-			Hostname:          server.Latest.Hostname,
-			SessionID:         server.Latest.SessionID,
-			LastSeen:          server.LastSeen,
-			Status:            status,
-			CPUPercent:        server.Latest.CPU.UsagePercent,
-			MemoryPercent:     server.Latest.Memory.UsagePercent,
-			DiskPercent:       server.Latest.Disk.UsagePercent,
-			OS:                server.Latest.OS.Platform,
-			CPUTemp:           server.Latest.Temperature.CPUTemp,
-			GPUTemp:           server.Latest.Temperature.GPUTemp,
-			GPUs:              server.Latest.GPUs, // 添加所有GPU信息
-			MaxTemp:           server.Latest.Temperature.MaxTemp,
-			NetworkSpeedSent:  server.Latest.Network.SpeedSent,
-			NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
-			NetworkBytesSent:  server.Latest.Network.BytesSent,
-			NetworkBytesRecv:  server.Latest.Network.BytesRecv,
-			UserResources:     server.Latest.UserResources,
+			Hostname:         server.Latest.Hostname,
+			SessionID:        server.Latest.SessionID,
+			LastSeen:         server.LastSeen,
+			Status:           status,
+			CPUPercent:       server.Latest.CPU.UsagePercent,
+			MemoryPercent:    server.Latest.Memory.UsagePercent,
+			DiskPercent:      server.Latest.Disk.UsagePercent,
+			OS:               server.Latest.OS.Platform,
+			CPUTemp:          server.Latest.Temperature.CPUTemp,
+			GPUTemp:          server.Latest.Temperature.GPUTemp,
+			GPUs:             server.Latest.GPUs, // 添加所有GPU信息
+			MaxTemp:          server.Latest.Temperature.MaxTemp,
+			NetworkSpeedSent: server.Latest.Network.SpeedSent,
+			NetworkSpeedRecv: server.Latest.Network.SpeedRecv,
+			NetworkBytesSent: server.Latest.Network.BytesSent,
+			NetworkBytesRecv: server.Latest.Network.BytesRecv,
+			UserResources:    server.Latest.UserResources,
 		})
 	}
 
@@ -1695,10 +1695,10 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	health["memory"] = map[string]interface{}{
-		"alloc_mb":      m.Alloc / 1024 / 1024,
-		"sys_mb":        m.Sys / 1024 / 1024,
-		"num_gc":        m.NumGC,
-		"goroutines":    runtime.NumGoroutine(),
+		"alloc_mb":   m.Alloc / 1024 / 1024,
+		"sys_mb":     m.Sys / 1024 / 1024,
+		"num_gc":     m.NumGC,
+		"goroutines": runtime.NumGoroutine(),
 	}
 
 	// 确定HTTP状态码
@@ -1718,13 +1718,13 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 // handleVersion 版本信息端点
 func handleVersion(w http.ResponseWriter, r *http.Request) {
 	version := map[string]interface{}{
-		"version":     "2.2.0-dev", // 当前开发版本
-		"build_time":  "2024-10-06T21:00:00Z", // 构建时间
-		"go_version":  runtime.Version(),
-		"git_commit":  "unknown", // 可以在构建时注入
-		"hostname":    getHostname(),
-		"platform":    runtime.GOOS + "/" + runtime.GOARCH,
-		"uptime":      time.Since(startTime).String(),
+		"version":    "2.2.0-dev",            // 当前开发版本
+		"build_time": "2024-10-06T21:00:00Z", // 构建时间
+		"go_version": runtime.Version(),
+		"git_commit": "unknown", // 可以在构建时注入
+		"hostname":   getHostname(),
+		"platform":   runtime.GOOS + "/" + runtime.GOARCH,
+		"uptime":     time.Since(startTime).String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1743,14 +1743,14 @@ func handleSystemStats(w http.ResponseWriter, r *http.Request) {
 
 	// 服务器配置信息
 	stats["server_config"] = map[string]interface{}{
-		"host":                serverConfig.Host,
-		"port":                serverConfig.Port,
-		"require_auth":        serverConfig.RequireAuth,
-		"data_limit":          serverConfig.DataLimit,
-		"data_interval":       serverConfig.DataInterval,
-		"enable_compression":  serverConfig.EnableCompression,
-		"enable_websocket":    serverConfig.EnableWebSocket,
-		"enable_cache":        serverConfig.EnableCache,
+		"host":               serverConfig.Host,
+		"port":               serverConfig.Port,
+		"require_auth":       serverConfig.RequireAuth,
+		"data_limit":         serverConfig.DataLimit,
+		"data_interval":      serverConfig.DataInterval,
+		"enable_compression": serverConfig.EnableCompression,
+		"enable_websocket":   serverConfig.EnableWebSocket,
+		"enable_cache":       serverConfig.EnableCache,
 	}
 
 	// 数据库统计
@@ -1812,11 +1812,11 @@ func handleSystemStats(w http.ResponseWriter, r *http.Request) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	stats["runtime"] = map[string]interface{}{
-		"alloc_mb":      m.Alloc / 1024 / 1024,
-		"sys_mb":        m.Sys / 1024 / 1024,
-		"num_gc":        m.NumGC,
-		"goroutines":    runtime.NumGoroutine(),
-		"go_version":    runtime.Version(),
+		"alloc_mb":   m.Alloc / 1024 / 1024,
+		"sys_mb":     m.Sys / 1024 / 1024,
+		"num_gc":     m.NumGC,
+		"goroutines": runtime.NumGoroutine(),
+		"go_version": runtime.Version(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -2031,23 +2031,23 @@ func cleanupRoutine() {
 				// WebSocket实时推送服务器离线通知
 				if serverConfig.EnableWebSocket {
 					serverStatus := ServerStatus{
-						Hostname:          server.Latest.Hostname,
-						SessionID:         server.Latest.SessionID,
-						LastSeen:          server.LastSeen,
-						Status:            "offline",
-						CPUPercent:        server.Latest.CPU.UsagePercent,
-						MemoryPercent:     server.Latest.Memory.UsagePercent,
-						DiskPercent:       server.Latest.Disk.UsagePercent,
-						OS:                server.Latest.OS.Platform,
-						CPUTemp:           server.Latest.Temperature.CPUTemp,
-						GPUTemp:           server.Latest.Temperature.GPUTemp,
-						GPUs:              server.Latest.GPUs,
-						MaxTemp:           server.Latest.Temperature.MaxTemp,
-						NetworkSpeedSent:  server.Latest.Network.SpeedSent,
-						NetworkSpeedRecv:  server.Latest.Network.SpeedRecv,
-						NetworkBytesSent:  server.Latest.Network.BytesSent,
-						NetworkBytesRecv:  server.Latest.Network.BytesRecv,
-						UserResources:     server.Latest.UserResources,
+						Hostname:         server.Latest.Hostname,
+						SessionID:        server.Latest.SessionID,
+						LastSeen:         server.LastSeen,
+						Status:           "offline",
+						CPUPercent:       server.Latest.CPU.UsagePercent,
+						MemoryPercent:    server.Latest.Memory.UsagePercent,
+						DiskPercent:      server.Latest.Disk.UsagePercent,
+						OS:               server.Latest.OS.Platform,
+						CPUTemp:          server.Latest.Temperature.CPUTemp,
+						GPUTemp:          server.Latest.Temperature.GPUTemp,
+						GPUs:             server.Latest.GPUs,
+						MaxTemp:          server.Latest.Temperature.MaxTemp,
+						NetworkSpeedSent: server.Latest.Network.SpeedSent,
+						NetworkSpeedRecv: server.Latest.Network.SpeedRecv,
+						NetworkBytesSent: server.Latest.Network.BytesSent,
+						NetworkBytesRecv: server.Latest.Network.BytesRecv,
+						UserResources:    server.Latest.UserResources,
 					}
 					webSocketManager.BroadcastServerUpdate(serverStatus, "offline")
 				}

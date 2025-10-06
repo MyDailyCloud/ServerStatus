@@ -38,11 +38,11 @@ func NewSQLiteRepositoryFactory(cfg *config.DatabaseConfig, logger logger.Logger
 // NewRepository 创建完整的仓库实例
 func (f *SQLiteRepositoryFactory) NewRepository() (repository.Repository, error) {
 	return &SQLiteRepository{
-		db:               f.db,
-		logger:           f.logger,
-		serverRepository: NewSQLiteServerRepository(f.db, f.logger),
-		historyRepository: NewSQLiteHistoryRepository(f.db, f.logger),
-		cacheRepository:   NewSQLiteCacheRepository(f.db, f.logger),
+		db:                  f.db,
+		logger:              f.logger,
+		serverRepository:    NewSQLiteServerRepository(f.db, f.logger),
+		historyRepository:   NewSQLiteHistoryRepository(f.db, f.logger),
+		cacheRepository:     NewSQLiteCacheRepository(f.db, f.logger),
 		accessKeyRepository: NewSQLiteAccessKeyRepository(f.db, f.logger),
 	}, nil
 }

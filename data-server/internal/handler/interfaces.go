@@ -211,12 +211,12 @@ type HandlerFactory interface {
 
 // RouteConfig 路由配置
 type RouteConfig struct {
-	Pattern    string
-	Method     string
-	Handler    http.Handler
-	Middleware []func(http.Handler) http.Handler
-	Auth       bool
-	RateLimit  bool
+	Pattern     string
+	Method      string
+	Handler     http.Handler
+	Middleware  []func(http.Handler) http.Handler
+	Auth        bool
+	RateLimit   bool
 	Compression bool
 }
 
@@ -237,8 +237,8 @@ type RouterBuilder interface {
 
 // APIVersion API版本
 type APIVersion struct {
-	Version string `json:"version"`
-	Path    string `json:"path"`
-	Deprecated bool `json:"deprecated"`
-	SunsetAt *string `json:"sunset_at"`
+	Version    string  `json:"version"`
+	Path       string  `json:"path"`
+	Deprecated bool    `json:"deprecated"`
+	SunsetAt   *string `json:"sunset_at"`
 }

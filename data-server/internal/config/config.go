@@ -8,72 +8,72 @@ import (
 
 // Config 应用配置
 type Config struct {
-	ConfigPath string            `yaml:"-" json:"config_path"`
-	Server     ServerConfig      `yaml:"server" json:"server"`
-	Database   DatabaseConfig    `yaml:"database" json:"database"`
-	Cache      CacheConfig       `yaml:"cache" json:"cache"`
-	Logging    LoggingConfig     `yaml:"logging" json:"logging"`
-	WebSocket  WebSocketConfig   `yaml:"websocket" json:"websocket"`
-	Export     ExportConfig      `yaml:"export" json:"export"`
+	ConfigPath string          `yaml:"-" json:"config_path"`
+	Server     ServerConfig    `yaml:"server" json:"server"`
+	Database   DatabaseConfig  `yaml:"database" json:"database"`
+	Cache      CacheConfig     `yaml:"cache" json:"cache"`
+	Logging    LoggingConfig   `yaml:"logging" json:"logging"`
+	WebSocket  WebSocketConfig `yaml:"websocket" json:"websocket"`
+	Export     ExportConfig    `yaml:"export" json:"export"`
 }
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host            string   `yaml:"host" json:"host"`
-	Port            string   `yaml:"port" json:"port"`
-	ReadTimeout     string   `yaml:"read_timeout" json:"read_timeout"`
-	WriteTimeout    string   `yaml:"write_timeout" json:"write_timeout"`
-	IdleTimeout     string   `yaml:"idle_timeout" json:"idle_timeout"`
-	MaxMemoryMB     int      `yaml:"max_memory_mb" json:"max_memory_mb"`
-	AllowedOrigins  []string `yaml:"allowed_origins" json:"allowed_origins"`
-	RequireAuth     bool     `yaml:"require_auth" json:"require_auth"`
-	ProjectKey      string   `yaml:"project_key" json:"project_key"`
-	ServerKey       string   `yaml:"server_key" json:"server_key"`
-	DataLimit       int      `yaml:"data_limit" json:"data_limit"`
-	DataInterval    int      `yaml:"data_interval" json:"data_interval"`
+	Host           string   `yaml:"host" json:"host"`
+	Port           string   `yaml:"port" json:"port"`
+	ReadTimeout    string   `yaml:"read_timeout" json:"read_timeout"`
+	WriteTimeout   string   `yaml:"write_timeout" json:"write_timeout"`
+	IdleTimeout    string   `yaml:"idle_timeout" json:"idle_timeout"`
+	MaxMemoryMB    int      `yaml:"max_memory_mb" json:"max_memory_mb"`
+	AllowedOrigins []string `yaml:"allowed_origins" json:"allowed_origins"`
+	RequireAuth    bool     `yaml:"require_auth" json:"require_auth"`
+	ProjectKey     string   `yaml:"project_key" json:"project_key"`
+	ServerKey      string   `yaml:"server_key" json:"server_key"`
+	DataLimit      int      `yaml:"data_limit" json:"data_limit"`
+	DataInterval   int      `yaml:"data_interval" json:"data_interval"`
 }
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Type               string `yaml:"type" json:"type"`
-	Path               string `yaml:"path" json:"path"`
-	ConnectionString   string `yaml:"connection_string" json:"connection_string"`
-	DSN                string `yaml:"dsn" json:"dsn"`
-	MaxOpenConns       int    `yaml:"max_open_conns" json:"max_open_conns"`
-	MaxIdleConns       int    `yaml:"max_idle_conns" json:"max_idle_conns"`
-	ConnMaxLifetime    string `yaml:"conn_max_lifetime" json:"conn_max_lifetime"`
+	Type             string `yaml:"type" json:"type"`
+	Path             string `yaml:"path" json:"path"`
+	ConnectionString string `yaml:"connection_string" json:"connection_string"`
+	DSN              string `yaml:"dsn" json:"dsn"`
+	MaxOpenConns     int    `yaml:"max_open_conns" json:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns" json:"max_idle_conns"`
+	ConnMaxLifetime  string `yaml:"conn_max_lifetime" json:"conn_max_lifetime"`
 }
 
 // CacheConfig 缓存配置
 type CacheConfig struct {
-	Type         string `yaml:"type" json:"type"` // redis, memory, none
-	Address      string `yaml:"address" json:"address"`
-	Password     string `yaml:"password" json:"password"`
-	DB           int    `yaml:"db" json:"db"`
-	PoolSize     int    `yaml:"pool_size" json:"pool_size"`
-	MinIdleConns int    `yaml:"min_idle_conns" json:"min_idle_conns"`
-	DialTimeout  string `yaml:"dial_timeout" json:"dial_timeout"`
-	ReadTimeout  string `yaml:"read_timeout" json:"read_timeout"`
-	WriteTimeout string `yaml:"write_timeout" json:"write_timeout"`
-	DefaultTTL   string `yaml:"default_ttl" json:"default_ttl"`
-	MaxMemoryMB  int    `yaml:"max_memory_mb" json:"max_memory_mb"`
-	Enable       bool   `yaml:"enable" json:"enable"`
-	RedisAddr    string `yaml:"redis_addr" json:"redis_addr"`
+	Type          string `yaml:"type" json:"type"` // redis, memory, none
+	Address       string `yaml:"address" json:"address"`
+	Password      string `yaml:"password" json:"password"`
+	DB            int    `yaml:"db" json:"db"`
+	PoolSize      int    `yaml:"pool_size" json:"pool_size"`
+	MinIdleConns  int    `yaml:"min_idle_conns" json:"min_idle_conns"`
+	DialTimeout   string `yaml:"dial_timeout" json:"dial_timeout"`
+	ReadTimeout   string `yaml:"read_timeout" json:"read_timeout"`
+	WriteTimeout  string `yaml:"write_timeout" json:"write_timeout"`
+	DefaultTTL    string `yaml:"default_ttl" json:"default_ttl"`
+	MaxMemoryMB   int    `yaml:"max_memory_mb" json:"max_memory_mb"`
+	Enable        bool   `yaml:"enable" json:"enable"`
+	RedisAddr     string `yaml:"redis_addr" json:"redis_addr"`
 	RedisPassword string `yaml:"redis_password" json:"redis_password"`
-	RedisDB      int    `yaml:"redis_db" json:"redis_db"`
+	RedisDB       int    `yaml:"redis_db" json:"redis_db"`
 }
 
 // LoggingConfig 日志配置
 type LoggingConfig struct {
-	Level        logger.Level `yaml:"level" json:"level"`           // debug, info, warn, error
-	Format       logger.Format `yaml:"format" json:"format"`       // json, text
-	Output       string       `yaml:"output" json:"output"`         // stdout, file, both
-	Filename     string       `yaml:"filename" json:"filename"`     // 日志文件名
-	MaxSize      int          `yaml:"max_size" json:"max_size"`     // MB
-	MaxBackups   int          `yaml:"max_backups" json:"max_backups"`
-	MaxAge       int          `yaml:"max_age" json:"max_age"`       // days
-	Compress     bool         `yaml:"compress" json:"compress"`
-	ReportCaller bool         `yaml:"report_caller" json:"report_caller"`
+	Level        logger.Level  `yaml:"level" json:"level"`       // debug, info, warn, error
+	Format       logger.Format `yaml:"format" json:"format"`     // json, text
+	Output       string        `yaml:"output" json:"output"`     // stdout, file, both
+	Filename     string        `yaml:"filename" json:"filename"` // 日志文件名
+	MaxSize      int           `yaml:"max_size" json:"max_size"` // MB
+	MaxBackups   int           `yaml:"max_backups" json:"max_backups"`
+	MaxAge       int           `yaml:"max_age" json:"max_age"` // days
+	Compress     bool          `yaml:"compress" json:"compress"`
+	ReportCaller bool          `yaml:"report_caller" json:"report_caller"`
 }
 
 // WebSocketConfig WebSocket配置
@@ -97,10 +97,10 @@ type ExportConfig struct {
 	MaxFileSize      int64    `yaml:"max_file_size" json:"max_file_size"`
 	SupportedFormats []string `yaml:"supported_formats" json:"supported_formats"`
 	Enable           bool     `yaml:"enable" json:"enable"`
-	Formats          []string `yaml:"formats" json:"formats"`     // csv, json, xml
-	MaxRows          int      `yaml:"max_rows" json:"max_rows"`   // 单次导出最大行数
+	Formats          []string `yaml:"formats" json:"formats"`       // csv, json, xml
+	MaxRows          int      `yaml:"max_rows" json:"max_rows"`     // 单次导出最大行数
 	ChunkSize        int      `yaml:"chunk_size" json:"chunk_size"` // 分片大小
-	TempDir          string   `yaml:"temp_dir" json:"temp_dir"`   // 临时文件目录
+	TempDir          string   `yaml:"temp_dir" json:"temp_dir"`     // 临时文件目录
 }
 
 // DefaultConfig 返回默认配置
@@ -117,12 +117,12 @@ func DefaultConfig() *Config {
 			DataInterval:   5,
 		},
 		Database: DatabaseConfig{
-			Type:             "sqlite",
-			Path:             "/tmp/serverstatus.db",
-			DSN:              "./data/serverstatus.db",
-			MaxOpenConns:     25,
-			MaxIdleConns:     5,
-			ConnMaxLifetime:  "5m",
+			Type:            "sqlite",
+			Path:            "/tmp/serverstatus.db",
+			DSN:             "./data/serverstatus.db",
+			MaxOpenConns:    25,
+			MaxIdleConns:    5,
+			ConnMaxLifetime: "5m",
 		},
 		Cache: CacheConfig{
 			Enable:      false,

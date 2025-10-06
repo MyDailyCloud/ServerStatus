@@ -1,0 +1,740 @@
+package export
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/kanshan/ServerStatus/data-server/internal/models"
+	"github.com/kanshan/ServerStatus/data-server/internal/repository"
+	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
+)
+
+// Mock repositories for testing
+type MockServerRepository struct {
+	mock.Mock
+}
+
+func (m *MockServerRepository) CreateServer(ctx context.Context, server *models.ServerInfo) error {
+	args := m.Called(ctx, server)
+	return args.Error(0)
+}
+
+func (m *MockServerRepository) GetServer(ctx context.Context, sessionID string) (*models.ServerInfo, error) {
+	args := m.Called(ctx, sessionID)
+	return args.Get(0).(*models.ServerInfo), args.Error(1)
+}
+
+func (m *MockServerRepository) UpdateServer(ctx context.Context, server *models.ServerInfo) error {
+	args := m.Called(ctx, server)
+	return args.Error(0)
+}
+
+func (m *MockServerRepository) DeleteServer(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func (m *MockServerRepository) GetAllServers(ctx context.Context, projectKey string, offset, limit int) ([]*models.ServerInfo, error) {
+	args := m.Called(ctx, projectKey, offset, limit)
+	return args.Get(0).([]*models.ServerInfo), args.Error(1)
+}
+
+func (m *MockServerRepository) GetServersByHostname(ctx context.Context, hostname string) ([]*models.ServerInfo, error) {
+	args := m.Called(ctx, hostname)
+	return args.Get(0).([]*models.ServerInfo), args.Error(1)
+}
+
+func (m *MockServerRepository) GetServerCount(ctx context.Context, projectKey string) (int, error) {
+	args := m.Called(ctx, projectKey)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockServerRepository) UpdateLastSeen(ctx context.Context, sessionID string) error {
+	args := m.Called(ctx, sessionID)
+	return args.Error(0)
+}
+
+func (m *MockServerRepository) GetOnlineServers(ctx context.Context, projectKey string, timeout time.Duration) ([]*models.ServerInfo, error) {
+	args := m.Called(ctx, projectKey, timeout)
+	return args.Get(0).([]*models.ServerInfo), args.Error(1)
+}
+
+func (m *MockServerRepository) Ping() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockServerRepository) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+type MockHistoryRepository struct {
+	mock.Mock
+}
+
+func (m *MockHistoryRepository) SaveHistory(ctx context.Context, serverID string, data *models.SystemInfo) error {
+	args := m.Called(ctx, serverID, data)
+	return args.Error(0)
+}
+
+func (m *MockHistoryRepository) GetHistory(ctx context.Context, serverID string, limit int) ([]*models.SystemInfo, error) {
+	args := m.Called(ctx, serverID, limit)
+	return args.Get(0).([]*models.SystemInfo), args.Error(1)
+}
+
+func (m *MockHistoryRepository) GetHistoryByTimeRange(ctx context.Context, serverID string, startTime, endTime time.Time) ([]*models.SystemInfo, error) {
+	args := m.Called(ctx, serverID, startTime, endTime)
+	return args.Get(0).([]*models.SystemInfo), args.Error(1)
+}
+
+func (m *MockHistoryRepository) GetLatestHistory(ctx context.Context, serverID string) (*models.SystemInfo, error) {
+	args := m.Called(ctx, serverID)
+	return args.Get(0).(*models.SystemInfo), args.Error(1)
+}
+
+func (m *MockHistoryRepository) DeleteOldHistory(ctx context.Context, serverID string, before time.Time) error {
+	args := m.Called(ctx, serverID, before)
+	return args.Error(0)
+}
+
+func (m *MockHistoryRepository) GetHistoryStats(ctx context.Context, serverID string, timeRange time.Duration) (map[string]interface{}, error) {
+	args := m.Called(ctx, serverID, timeRange)
+	return args.Get(0).(map[string]interface{}), args.Error(1)
+}
+
+func (m *MockHistoryRepository) Ping() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockHistoryRepository) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+type MockCacheRepository struct {
+	mock.Mock
+}
+
+func (m *MockCacheRepository) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	args := m.Called(ctx, key, value, ttl)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) Get(ctx context.Context, key string, dest interface{}) error {
+	args := m.Called(ctx, key, dest)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) Delete(ctx context.Context, key string) error {
+	args := m.Called(ctx, key)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) Exists(ctx context.Context, key string) (bool, error) {
+	args := m.Called(ctx, key)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockCacheRepository) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error {
+	args := m.Called(ctx, items, ttl)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) {
+	args := m.Called(ctx, keys)
+	return args.Get(0).(map[string]interface{}), args.Error(1)
+}
+
+func (m *MockCacheRepository) DeleteMultiple(ctx context.Context, keys []string) error {
+	args := m.Called(ctx, keys)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) ClearPattern(ctx context.Context, pattern string) error {
+	args := m.Called(ctx, pattern)
+	return args.Error(0)
+}
+
+func (m *MockCacheRepository) Keys(ctx context.Context, pattern string) ([]string, error) {
+	args := m.Called(ctx, pattern)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockCacheRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(map[string]interface{}), args.Error(1)
+}
+
+func (m *MockCacheRepository) IsConnected() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *MockCacheRepository) GetType() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+type MockLogger struct {
+	mock.Mock
+}
+
+func (m *MockLogger) Debug(msg string) {
+	m.Called(msg)
+}
+
+func (m *MockLogger) Info(msg string) {
+	m.Called(msg)
+}
+
+func (m *MockLogger) Warn(msg string) {
+	m.Called(msg)
+}
+
+func (m *MockLogger) Error(msg string) {
+	m.Called(msg)
+}
+
+func (m *MockLogger) Debugf(format string, args ...interface{}) {
+	m.Called(format, args)
+}
+
+func (m *MockLogger) Infof(format string, args ...interface{}) {
+	m.Called(format, args)
+}
+
+func (m *MockLogger) Warnf(format string, args ...interface{}) {
+	m.Called(format, args)
+}
+
+func (m *MockLogger) Errorf(format string, args ...interface{}) {
+	m.Called(format, args)
+}
+
+func (m *MockLogger) WithField(key string, value interface{}) logger.Logger {
+	args := m.Called(key, value)
+	return args.Get(0).(logger.Logger)
+}
+
+func (m *MockLogger) WithFields(fields map[string]interface{}) logger.Logger {
+	args := m.Called(fields)
+	return args.Get(0).(logger.Logger)
+}
+
+func (m *MockLogger) WithError(err error) logger.Logger {
+	args := m.Called(err)
+	return args.Get(0).(logger.Logger)
+}
+
+// Test helper functions
+func createTestServerInfo() *models.ServerInfo {
+	now := time.Now()
+	return &models.ServerInfo{
+		SessionID:  "test-session-1",
+		Hostname:   "test-host",
+		ProjectKey: "test-project",
+		OS:         "linux",
+		Arch:       "amd64",
+		CPUCores:   4,
+		MemoryTotal: 8589934592, // 8GB
+		DiskTotal:   107374182400, // 100GB
+		Uptime:      3600,
+		BootTime:    now.Add(-time.Hour),
+		CreatedAt:   now.Add(-2 * time.Hour),
+		UpdatedAt:   now,
+		SystemInfo: &models.SystemInfo{
+			Hostname:       "test-host",
+			SessionID:      "test-session-1",
+			Timestamp:      now,
+			CPUUsage:       25.5,
+			MemoryUsed:     4294967296, // 4GB
+			MemoryAvailable: 4294967296, // 4GB
+			DiskUsed:       53687091200, // 50GB
+			DiskAvailable:  53687091200, // 50GB
+			NetworkRx:      1073741824,  // 1GB
+			NetworkTx:      2147483648,  // 2GB
+			LoadAvg:        1.5,
+			ProcessCount:   150,
+		},
+	}
+}
+
+func createTestHistoryData() []*models.SystemInfo {
+	now := time.Now()
+	var history []*models.SystemInfo
+
+	for i := 0; i < 10; i++ {
+		timestamp := now.Add(-time.Duration(i) * time.Minute)
+		history = append(history, &models.SystemInfo{
+			Hostname:       "test-host",
+			SessionID:      "test-session-1",
+			Timestamp:      timestamp,
+			CPUUsage:       float64(20 + i),
+			MemoryUsed:     4294967296 + uint64(i*100000000),
+			MemoryAvailable: 4294967296 - uint64(i*100000000),
+			DiskUsed:       53687091200 + uint64(i*1000000000),
+			DiskAvailable:  53687091200 - uint64(i*1000000000),
+			NetworkRx:      1073741824 + uint64(i*10000000),
+			NetworkTx:      2147483648 + uint64(i*20000000),
+			LoadAvg:        1.0 + float64(i)*0.1,
+			ProcessCount:   150 + i,
+		})
+	}
+
+	return history
+}
+
+// Test cases
+func TestExportService_ExportServersCSV(t *testing.T) {
+	// Setup mocks
+	mockServerRepo := &MockServerRepository{}
+	mockHistoryRepo := &MockHistoryRepository{}
+	mockCacheRepo := &MockCacheRepository{}
+	mockLogger := &MockLogger{}
+
+	// Create service
+	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+
+	// Setup test data
+	server := createTestServerInfo()
+	servers := []*models.ServerInfo{server}
+
+	// Setup mock expectations
+	mockServerRepo.On("GetAllServers", mock.Anything, "test-project", 0, 10000).Return(servers, nil)
+
+	// Create export request
+	req := &ExportRequest{
+		ProjectKey:   "test-project",
+		StartTime:    time.Now().Add(-time.Hour),
+		EndTime:      time.Now(),
+		Format:       FormatCSV,
+		IncludeTypes: []ExportDataType{DataTypeServerInfo, DataTypeSystemInfo},
+		Limit:        10000,
+		Offset:       0,
+	}
+
+	// Mock logger calls
+	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
+	mockLogger.On("Info", mock.Anything)
+
+	// Execute export
+	result, err := service.ExportServers(context.Background(), req)
+
+	// Assertions
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "text/csv", result.ContentType)
+	assert.Equal(t, 1, result.RecordCount)
+	assert.True(t, strings.HasPrefix(result.Filename, "servers_export_test-project_"))
+	assert.True(t, strings.HasSuffix(result.Filename, ".csv"))
+
+	// Verify CSV content
+	content, err := io.ReadAll(result.Data)
+	require.NoError(t, err)
+
+	lines := strings.Split(string(content), "\n")
+	assert.True(t, len(lines) >= 2) // Header + at least one data line
+
+	// Verify header
+	header := lines[0]
+	expectedHeaders := []string{
+		"SessionID", "Hostname", "ProjectKey", "OS", "Architecture",
+		"CPUCores", "MemoryTotal", "DiskTotal", "Uptime", "BootTime",
+		"CreatedAt", "UpdatedAt", "CPUUsage", "MemoryUsed", "MemoryAvailable",
+		"DiskUsed", "DiskAvailable", "NetworkRx", "NetworkTx", "LoadAvg",
+		"ProcessCount", "LastUpdate",
+	}
+	for _, expectedHeader := range expectedHeaders {
+		assert.Contains(t, header, expectedHeader)
+	}
+
+	// Close data reader
+	result.Data.Close()
+
+	// Verify mock expectations
+	mockServerRepo.AssertExpectations(t)
+	mockLogger.AssertExpectations(t)
+}
+
+func TestExportService_ExportServersJSON(t *testing.T) {
+	// Setup mocks
+	mockServerRepo := &MockServerRepository{}
+	mockHistoryRepo := &MockHistoryRepository{}
+	mockCacheRepo := &MockCacheRepository{}
+	mockLogger := &MockLogger{}
+
+	// Create service
+	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+
+	// Setup test data
+	server := createTestServerInfo()
+	servers := []*models.ServerInfo{server}
+
+	// Setup mock expectations
+	mockServerRepo.On("GetAllServers", mock.Anything, "test-project", 0, 10000).Return(servers, nil)
+
+	// Create export request
+	req := &ExportRequest{
+		ProjectKey:   "test-project",
+		StartTime:    time.Now().Add(-time.Hour),
+		EndTime:      time.Now(),
+		Format:       FormatJSON,
+		IncludeTypes: []ExportDataType{DataTypeServerInfo},
+		Limit:        10000,
+		Offset:       0,
+	}
+
+	// Mock logger calls
+	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
+	mockLogger.On("Info", mock.Anything)
+
+	// Execute export
+	result, err := service.ExportServers(context.Background(), req)
+
+	// Assertions
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "application/json", result.ContentType)
+	assert.Equal(t, 1, result.RecordCount)
+	assert.True(t, strings.HasPrefix(result.Filename, "servers_export_test-project_"))
+	assert.True(t, strings.HasSuffix(result.Filename, ".json"))
+
+	// Verify JSON content
+	content, err := io.ReadAll(result.Data)
+	require.NoError(t, err)
+
+	var exportData map[string]interface{}
+	err = json.Unmarshal(content, &exportData)
+	require.NoError(t, err)
+
+	// Verify structure
+	assert.Contains(t, exportData, "metadata")
+	assert.Contains(t, exportData, "servers")
+
+	metadata := exportData["metadata"].(map[string]interface{})
+	assert.Equal(t, "test-project", metadata["project_key"])
+	assert.Equal(t, float64(1), metadata["total_servers"])
+
+	serversData := exportData["servers"].([]interface{})
+	assert.Len(t, serversData, 1)
+
+	// Close data reader
+	result.Data.Close()
+
+	// Verify mock expectations
+	mockServerRepo.AssertExpectations(t)
+	mockLogger.AssertExpectations(t)
+}
+
+func TestExportService_ExportHistoryCSV(t *testing.T) {
+	// Setup mocks
+	mockServerRepo := &MockServerRepository{}
+	mockHistoryRepo := &MockHistoryRepository{}
+	mockCacheRepo := &MockCacheRepository{}
+	mockLogger := &MockLogger{}
+
+	// Create service
+	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+
+	// Setup test data
+	history := createTestHistoryData()
+	servers := []*models.ServerInfo{createTestServerInfo()}
+
+	// Setup mock expectations
+	mockServerRepo.On("GetAllServers", mock.Anything, "test-project", 0, 1000).Return(servers, nil)
+	mockHistoryRepo.On("GetHistoryByTimeRange", mock.Anything, "test-session-1", mock.Anything, mock.Anything).Return(history, nil)
+
+	// Create export request
+	req := &ExportRequest{
+		ProjectKey: "test-project",
+		StartTime:  time.Now().Add(-2 * time.Hour),
+		EndTime:    time.Now(),
+		Format:     FormatCSV,
+		Limit:      10000,
+		Offset:     0,
+	}
+
+	// Mock logger calls
+	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
+	mockLogger.On("Info", mock.Anything)
+
+	// Execute export
+	result, err := service.ExportHistory(context.Background(), req)
+
+	// Assertions
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "text/csv", result.ContentType)
+	assert.Equal(t, len(history), result.RecordCount)
+	assert.True(t, strings.HasPrefix(result.Filename, "history_export_test-project_"))
+	assert.True(t, strings.HasSuffix(result.Filename, ".csv"))
+
+	// Close data reader
+	result.Data.Close()
+
+	// Verify mock expectations
+	mockServerRepo.AssertExpectations(t)
+	mockHistoryRepo.AssertExpectations(t)
+	mockLogger.AssertExpectations(t)
+}
+
+func TestExportService_ValidateRequest(t *testing.T) {
+	service := &ExportService{}
+
+	tests := []struct {
+		name    string
+		req     *ExportRequest
+		wantErr bool
+	}{
+		{
+			name: "valid request",
+			req: &ExportRequest{
+				ProjectKey:   "test-project",
+				StartTime:    time.Now().Add(-time.Hour),
+				EndTime:      time.Now(),
+				Format:       FormatCSV,
+				IncludeTypes: []ExportDataType{DataTypeServerInfo},
+				Limit:        1000,
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing project key",
+			req: &ExportRequest{
+				StartTime:    time.Now().Add(-time.Hour),
+				EndTime:      time.Now(),
+				Format:       FormatCSV,
+				IncludeTypes: []ExportDataType{DataTypeServerInfo},
+			},
+			wantErr: true,
+		},
+		{
+			name: "start time after end time",
+			req: &ExportRequest{
+				ProjectKey:   "test-project",
+				StartTime:    time.Now(),
+				EndTime:      time.Now().Add(-time.Hour),
+				Format:       FormatCSV,
+				IncludeTypes: []ExportDataType{DataTypeServerInfo},
+			},
+			wantErr: true,
+		},
+		{
+			name: "time range too large",
+			req: &ExportRequest{
+				ProjectKey:   "test-project",
+				StartTime:    time.Now().Add(-400 * 24 * time.Hour), // 400 days
+				EndTime:      time.Now(),
+				Format:       FormatCSV,
+				IncludeTypes: []ExportDataType{DataTypeServerInfo},
+			},
+			wantErr: true,
+		},
+		{
+			name: "limit too high",
+			req: &ExportRequest{
+				ProjectKey:   "test-project",
+				StartTime:    time.Now().Add(-time.Hour),
+				EndTime:      time.Now(),
+				Format:       FormatCSV,
+				IncludeTypes: []ExportDataType{DataTypeServerInfo},
+				Limit:        200000, // Exceeds 100000 limit
+			},
+			wantErr: false, // Should be auto-corrected
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := service.validateRequest(tt.req)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestExportService_GetExportFormats(t *testing.T) {
+	service := &ExportService{}
+	formats := service.GetExportFormats()
+
+	expectedFormats := []ExportFormat{FormatCSV, FormatJSON}
+	assert.Equal(t, expectedFormats, formats)
+}
+
+func TestExportService_GetExportDataTypes(t *testing.T) {
+	service := &ExportService{}
+	types := service.GetExportDataTypes()
+
+	expectedTypes := []ExportDataType{DataTypeServerInfo, DataTypeSystemInfo, DataTypeHistory}
+	assert.Equal(t, expectedTypes, types)
+}
+
+func TestExportService_EstimateExportSize(t *testing.T) {
+	// Setup mocks
+	mockServerRepo := &MockServerRepository{}
+	mockHistoryRepo := &MockHistoryRepository{}
+	mockCacheRepo := &MockCacheRepository{}
+	mockLogger := &MockLogger{}
+
+	// Create service
+	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+
+	// Setup test data
+	server := createTestServerInfo()
+	servers := []*models.ServerInfo{server}
+
+	// Setup mock expectations
+	mockServerRepo.On("GetAllServers", mock.Anything, "test-project", 0, 10).Return(servers, nil)
+
+	// Create export request
+	req := &ExportRequest{
+		ProjectKey:   "test-project",
+		StartTime:    time.Now().Add(-time.Hour),
+		EndTime:      time.Now(),
+		Format:       FormatCSV,
+		IncludeTypes: []ExportDataType{DataTypeServerInfo},
+		Limit:        1000, // Large limit for estimation
+		Offset:       0,
+	}
+
+	// Execute estimation
+	size, err := service.EstimateExportSize(context.Background(), req)
+
+	// Assertions
+	require.NoError(t, err)
+	assert.Greater(t, size, int64(0))
+
+	// Verify mock expectations
+	mockServerRepo.AssertExpectations(t)
+}
+
+func TestExportService_FormatBytes(t *testing.T) {
+	service := &ExportService{}
+
+	tests := []struct {
+		bytes     uint64
+		expected  string
+	}{
+		{512, "512 B"},
+		{1024, "1.0 KiB"},
+		{1536, "1.5 KiB"},
+		{1048576, "1.0 MiB"},
+		{1073741824, "1.0 GiB"},
+		{1099511627776, "1.0 TiB"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d bytes", tt.bytes), func(t *testing.T) {
+			result := service.formatBytes(tt.bytes)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestStringReadCloser(t *testing.T) {
+	testData := "Hello, World!"
+	rc := &StringReadCloser{Data: testData}
+
+	// Test reading
+	buf := make([]byte, 13)
+	n, err := rc.Read(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, 13, n)
+	assert.Equal(t, testData, string(buf))
+
+	// Test EOF
+	n, err = rc.Read(buf)
+	assert.Equal(t, 0, n)
+	assert.Equal(t, io.EOF, err)
+
+	// Test close
+	err = rc.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, rc.pos)
+}
+
+func TestExportServiceFactory(t *testing.T) {
+	// Setup mocks
+	mockRepo := &MockRepository{}
+	mockLogger := &MockLogger{}
+
+	// Create factory
+	factory := NewExportServiceFactory(mockRepo, mockLogger)
+
+	// Setup mock expectations
+	mockServerRepo := &MockServerRepository{}
+	mockHistoryRepo := &MockHistoryRepository{}
+	mockCacheRepo := &MockCacheRepository{}
+	mockRepo.On("ServerRepository").Return(mockServerRepo)
+	mockRepo.On("HistoryRepository").Return(mockCacheRepo)
+	mockRepo.On("CacheRepository").Return(mockCacheRepo)
+
+	// Create export service
+	service := factory.CreateExportService()
+
+	// Assertions
+	assert.NotNil(t, service)
+	assert.Equal(t, mockServerRepo, service.serverRepo)
+	assert.Equal(t, mockHistoryRepo, service.historyRepo)
+	assert.Equal(t, mockCacheRepo, service.cacheRepo)
+	assert.Equal(t, mockLogger, service.logger)
+
+	// Verify mock expectations
+	mockRepo.AssertExpectations(t)
+}
+
+// Mock repository for factory testing
+type MockRepository struct {
+	mock.Mock
+}
+
+func (m *MockRepository) ServerRepository() repository.ServerRepository {
+	args := m.Called()
+	return args.Get(0).(repository.ServerRepository)
+}
+
+func (m *MockRepository) HistoryRepository() repository.HistoryRepository {
+	args := m.Called()
+	return args.Get(0).(repository.HistoryRepository)
+}
+
+func (m *MockRepository) CacheRepository() repository.CacheRepository {
+	args := m.Called()
+	return args.Get(0).(repository.CacheRepository)
+}
+
+func (m *MockRepository) AccessKeyRepository() repository.AccessKeyRepository {
+	args := m.Called()
+	return args.Get(0).(repository.AccessKeyRepository)
+}
+
+func (m *MockRepository) Ping() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockRepository) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockRepository) HealthChecker() repository.HealthChecker {
+	args := m.Called()
+	return args.Get(0).(repository.HealthChecker)
+}

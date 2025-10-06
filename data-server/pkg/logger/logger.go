@@ -36,15 +36,15 @@ const (
 
 // Config 日志配置
 type Config struct {
-	Level      Level  `yaml:"level" json:"level"`
-	Format     Format `yaml:"format" json:"format"`
-	Output     string `yaml:"output" json:"output"`
-	Filename   string `yaml:"filename" json:"filename"`
-	MaxSize    int    `yaml:"max_size" json:"max_size"`
-	MaxBackups int    `yaml:"max_backups" json:"max_backups"`
-	MaxAge     int    `yaml:"max_age" json:"max_age"`
-	Compress   bool   `yaml:"compress" json:"compress"`
-	ReportCaller bool `yaml:"report_caller" json:"report_caller"`
+	Level        Level  `yaml:"level" json:"level"`
+	Format       Format `yaml:"format" json:"format"`
+	Output       string `yaml:"output" json:"output"`
+	Filename     string `yaml:"filename" json:"filename"`
+	MaxSize      int    `yaml:"max_size" json:"max_size"`
+	MaxBackups   int    `yaml:"max_backups" json:"max_backups"`
+	MaxAge       int    `yaml:"max_age" json:"max_age"`
+	Compress     bool   `yaml:"compress" json:"compress"`
+	ReportCaller bool   `yaml:"report_caller" json:"report_caller"`
 }
 
 // Logger 日志接口
@@ -351,12 +351,12 @@ func LogRequestIDMiddleware(logger Logger) func(http.Handler) http.Handler {
 			defer func() {
 				duration := time.Since(start)
 				logger.WithFields(map[string]interface{}{
-					"method":     r.Method,
-					"path":       r.URL.Path,
-					"status":     wrapped.status,
-					"duration":   duration,
+					"method":      r.Method,
+					"path":        r.URL.Path,
+					"status":      wrapped.status,
+					"duration":    duration,
 					"remote_addr": r.RemoteAddr,
-					"user_agent": r.UserAgent(),
+					"user_agent":  r.UserAgent(),
 				}).Info("HTTP Request")
 			}()
 

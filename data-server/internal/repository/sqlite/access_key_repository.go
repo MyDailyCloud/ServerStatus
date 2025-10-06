@@ -46,7 +46,7 @@ func (r *SQLiteAccessKeyRepository) SaveAccessKey(ctx context.Context, cacheKey,
 	}
 
 	r.logger.WithFields(map[string]interface{}{
-		"access_key": accessKey[:8] + "...",
+		"access_key":  accessKey[:8] + "...",
 		"project_key": projectKey,
 	}).Info("Access key saved successfully")
 
@@ -186,10 +186,10 @@ func (r *SQLiteAccessKeyRepository) GetActiveKeys(ctx context.Context, projectKe
 		}
 
 		keyInfo := map[string]interface{}{
-			"access_key": accessKey,
-			"cache_key":  cacheKey,
+			"access_key":  accessKey,
+			"cache_key":   cacheKey,
 			"project_key": pKey,
-			"is_active":  isActive,
+			"is_active":   isActive,
 		}
 
 		if createdAt.Valid {

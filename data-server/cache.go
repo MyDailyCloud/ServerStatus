@@ -16,7 +16,7 @@ import (
 type CacheManager struct {
 	client      *redis.Client
 	enabled     bool
-	redisConn   bool          // Redis连接状态
+	redisConn   bool                  // Redis连接状态
 	memoryCache map[string]*CacheItem // 内存缓存
 	mu          sync.RWMutex
 }
@@ -244,7 +244,7 @@ func (c *CacheManager) GetStats(ctx context.Context) (map[string]interface{}, er
 	}
 
 	stats["memory_cache"] = map[string]interface{}{
-		"total_items":  memoryCount,
+		"total_items":   memoryCount,
 		"expired_items": expiredCount,
 	}
 

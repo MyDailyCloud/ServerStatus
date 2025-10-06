@@ -180,14 +180,14 @@ data-server/
 
 ## 🚀 发布计划
 
-### Alpha版本 (v2.1.0-alpha)
+### Alpha版本 (v2.1.0-alpha) ✅ 发布
 - [x] 基础架构搭建完成
 - [x] 配置管理系统
-- [ ] 基本的Repository层实现
+- [x] 完整的Repository层实现
 - [ ] 简单的API端点
 
 ### Beta版本 (v2.1.0-beta)
-- [ ] 完整的Repository层
+- [x] 完整的Repository层
 - [ ] Service层核心功能
 - [ ] 基础的HTTP API
 - [ ] WebSocket实时通信
@@ -206,15 +206,17 @@ data-server/
 
 ## 📝 当前任务
 
-### 正在进行: 第二阶段 - 数据访问层实现
+### 正在进行: 第三阶段 - 业务逻辑层实现
 
-**当前任务**: Repository层基础实现
+**当前任务**: Service层核心功能实现
 
 **下一步计划**:
-1. 实现SQLite Repository
-2. 实现Redis Repository
-3. 添加数据库连接池管理
-4. 编写Repository层测试
+1. 实现服务器管理服务
+2. 实现数据导出服务
+3. 实现认证授权服务
+4. 实现健康检查服务
+5. 实现WebSocket服务
+6. 编写Service层测试
 
 ---
 

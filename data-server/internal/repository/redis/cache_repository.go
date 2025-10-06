@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
-	"github.com/go-redis/redis/v8"
 )
 
 // RedisCacheRepository Redis缓存仓库实现
@@ -295,12 +295,12 @@ func (r *RedisCacheRepository) GetStats(ctx context.Context) (map[string]interfa
 	// 获取连接池状态
 	poolStats := r.client.PoolStats()
 	stats["connections"] = map[string]interface{}{
-		"hits":         poolStats.Hits,
-		"misses":       poolStats.Misses,
-		"timeouts":     poolStats.Timeouts,
-		"total_conns":  poolStats.TotalConns,
-		"idle_conns":   poolStats.IdleConns,
-		"stale_conns":  poolStats.StaleConns,
+		"hits":        poolStats.Hits,
+		"misses":      poolStats.Misses,
+		"timeouts":    poolStats.Timeouts,
+		"total_conns": poolStats.TotalConns,
+		"idle_conns":  poolStats.IdleConns,
+		"stale_conns": poolStats.StaleConns,
 	}
 
 	// 统计当前前缀下的键数量

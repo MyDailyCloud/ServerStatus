@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 	"github.com/kanshan/ServerStatus/data-server/pkg/utils"
+	"gopkg.in/yaml.v3"
 )
 
 // Manager 配置管理器接口
@@ -300,16 +300,16 @@ func (m *ConfigManager) GetConfigSummary() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"loaded":           true,
-		"version":          m.version,
-		"config_path":      m.config.ConfigPath,
-		"server_host":      m.config.Server.Host,
-		"server_port":      m.config.Server.Port,
-		"database_type":    m.config.Database.Type,
-		"cache_type":       m.config.Cache.Type,
-		"log_level":        m.config.Logging.Level,
+		"loaded":            true,
+		"version":           m.version,
+		"config_path":       m.config.ConfigPath,
+		"server_host":       m.config.Server.Host,
+		"server_port":       m.config.Server.Port,
+		"database_type":     m.config.Database.Type,
+		"cache_type":        m.config.Cache.Type,
+		"log_level":         m.config.Logging.Level,
 		"websocket_enabled": m.config.WebSocket.Enabled,
-		"last_updated":     m.lastModTime.Format(time.RFC3339),
+		"last_updated":      m.lastModTime.Format(time.RFC3339),
 	}
 }
 
