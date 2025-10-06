@@ -1132,6 +1132,11 @@ func collectUserResourceInfo() []UserResourceInfo {
 		return nil
 	}
 
+	// 限制处理的进程数量，避免性能问题
+	if len(processes) > 1000 {
+		processes = processes[:1000]
+	}
+
 	// 用户资源映射
 	userMap := make(map[string]*UserResourceInfo)
 	processDetails := make([]ProcessInfo, 0)
