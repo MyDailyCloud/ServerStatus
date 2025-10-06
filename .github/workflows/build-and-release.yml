@@ -1,4 +1,4 @@
-name: Build and Release (Fixed)
+name: Build and Release
 
 on:
   push:
@@ -49,18 +49,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux/AMD64 (支持SQLite)
           - goos: linux
             goarch: amd64
-            cgo_enabled: 1
-          # Windows/AMD64 (不支持SQLite，使用内存模式)
+            suffix: ""
           - goos: windows
             goarch: amd64
-            cgo_enabled: 0
-          # macOS/AMD64 (支持SQLite)
+            suffix: ".exe"
           - goos: darwin
             goarch: amd64
-            cgo_enabled: 1
+            suffix: ""
 
     steps:
     - uses: actions/checkout@v4
@@ -80,12 +77,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: Install SQLite dependencies
-      if: matrix.cgo_enabled == 1
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y sqlite3 libsqlite3-dev
-
     - name: Download dependencies
       run: go mod download
 
@@ -93,64 +84,11 @@ jobs:
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
-        CGO_ENABLED: ${{ matrix.cgo_enabled }}
+        CGO_ENABLED: 0
       run: |
         mkdir -p release
-
-        # 为不支持CGO的平台创建一个无数据库版本
-        if [ "$CGO_ENABLED" = "0" ]; then
-          echo "Building data-server without database support for $GOOS/$GOARCH"
-          cd data-server
-          # 创建一个临时的main文件，禁用数据库功能
-          cat > main_nodb.go << 'EOF'
-package main
-
-import (
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"time"
-
-	"github.com/gorilla/mux"
-)
-
-// 简化版本，不包含数据库功能
-func main() {
-	log.Println("ServerStatus Monitor Data Server (No Database Version)")
-	log.Printf("Platform: %s/%s", os.Getenv("GOOS"), os.Getenv("GOARCH"))
-
-	r := mux.NewRouter()
-	r.HandleFunc("/api/data", handleDataSimple).Methods("POST")
-	r.HandleFunc("/api/servers", handleGetServersSimple).Methods("GET")
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("Server starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
-}
-
-func handleDataSimple(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"status":"ok","message":"Data received (no database storage)"}`)
-}
-
-func handleGetServersSimple(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `[]`)
-}
-EOF
-          go build -ldflags "-s -w" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && format='.exe' || '' }} main_nodb.go
-        else
-          echo "Building data-server with database support for $GOOS/$GOARCH"
-          cd data-server
-          go build -ldflags "-s -w" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && format='.exe' || '' }} *.go
-        fi
+        cd data-server
+        go build -ldflags "-s -w" -o ../release/data-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} *.go
 
     - name: Build monitor-agent
       env:
@@ -159,11 +97,7 @@ EOF
         CGO_ENABLED: 0
       run: |
         cd monitor-agent
-        if [ "$GOOS" = "windows" ]; then
-          go build -ldflags "-s -w" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }}.exe *.go
-        else
-          go build -ldflags "-s -w" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }} *.go
-        fi
+        go build -ldflags "-s -w" -o ../release/monitor-agent-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.suffix }} *.go
 
     - name: Create build info
       run: |
@@ -171,7 +105,6 @@ EOF
         echo "Git Commit: ${GITHUB_SHA:0:7}" >> release/build-info.txt
         echo "Go Version: $(go version)" >> release/build-info.txt
         echo "Platform: ${{ matrix.goos }}/${{ matrix.goarch }}" >> release/build-info.txt
-        echo "Database Support: ${{ matrix.cgo_enabled == '1' && 'Yes' || 'No (Memory only)' }}" >> release/build-info.txt
 
     - name: List built files
       run: ls -la release/
@@ -246,15 +179,15 @@ EOF
           - ✅ 多级缓存策略(内存+Redis)
           - ✅ 自动降级机制
 
-          ### 数据库持久化
-          - ✅ SQLite数据库存储 (Linux/macOS版本)
-          - ✅ 内存模式 (Windows版本，适合快速部署)
-          - ✅ 历史数据查询和统计
+          ### Session UUID系统
+          - ✅ 基于UUID的客户端标识
+          - ✅ 提升追踪准确性
+          - ✅ 支持设备统计
 
           ## 📦 下载文件
 
           ### Linux
-          - `data-server-linux` - 数据服务器 (包含完整数据库支持)
+          - `data-server-linux` - 数据服务器 (内存模式)
           - `monitor-agent-linux` - 监控客户端
 
           ### Windows
@@ -262,7 +195,7 @@ EOF
           - `monitor-agent.exe` - 监控客户端
 
           ### macOS
-          - `data-server-macos` - 数据服务器 (包含完整数据库支持)
+          - `data-server-macos` - 数据服务器 (内存模式)
           - `monitor-agent-macos` - 监控客户端
 
           ## 🚀 快速开始
@@ -274,6 +207,11 @@ EOF
           # 启动监控客户端
           ./monitor-agent-linux -url http://your-server:8080/api/data -key your-project-key
           ```
+
+          ## 📖 文档
+          - [API文档](https://github.com/MyDailyCloud/ServerStatus/blob/main/API.md)
+          - [使用说明](https://github.com/MyDailyCloud/ServerStatus/blob/main/README.md)
+          - [更新日志](https://github.com/MyDailyCloud/ServerStatus/blob/main/CHANGELOG.md)
 
           ---
           🤖 Auto-generated by GitHub Actions
