@@ -243,31 +243,31 @@ func (m *MockLogger) WithError(err error) logger.Logger {
 func createTestServerInfo() *models.ServerInfo {
 	now := time.Now()
 	return &models.ServerInfo{
-		SessionID:  "test-session-1",
-		Hostname:   "test-host",
-		ProjectKey: "test-project",
-		OS:         "linux",
-		Arch:       "amd64",
-		CPUCores:   4,
-		MemoryTotal: 8589934592, // 8GB
+		SessionID:   "test-session-1",
+		Hostname:    "test-host",
+		ProjectKey:  "test-project",
+		OS:          "linux",
+		Arch:        "amd64",
+		CPUCores:    4,
+		MemoryTotal: 8589934592,   // 8GB
 		DiskTotal:   107374182400, // 100GB
 		Uptime:      3600,
 		BootTime:    now.Add(-time.Hour),
 		CreatedAt:   now.Add(-2 * time.Hour),
 		UpdatedAt:   now,
 		SystemInfo: &models.SystemInfo{
-			Hostname:       "test-host",
-			SessionID:      "test-session-1",
-			Timestamp:      now,
-			CPUUsage:       25.5,
-			MemoryUsed:     4294967296, // 4GB
-			MemoryAvailable: 4294967296, // 4GB
-			DiskUsed:       53687091200, // 50GB
-			DiskAvailable:  53687091200, // 50GB
-			NetworkRx:      1073741824,  // 1GB
-			NetworkTx:      2147483648,  // 2GB
-			LoadAvg:        1.5,
-			ProcessCount:   150,
+			Hostname:        "test-host",
+			SessionID:       "test-session-1",
+			Timestamp:       now,
+			CPUUsage:        25.5,
+			MemoryUsed:      4294967296,  // 4GB
+			MemoryAvailable: 4294967296,  // 4GB
+			DiskUsed:        53687091200, // 50GB
+			DiskAvailable:   53687091200, // 50GB
+			NetworkRx:       1073741824,  // 1GB
+			NetworkTx:       2147483648,  // 2GB
+			LoadAvg:         1.5,
+			ProcessCount:    150,
 		},
 	}
 }
@@ -279,18 +279,18 @@ func createTestHistoryData() []*models.SystemInfo {
 	for i := 0; i < 10; i++ {
 		timestamp := now.Add(-time.Duration(i) * time.Minute)
 		history = append(history, &models.SystemInfo{
-			Hostname:       "test-host",
-			SessionID:      "test-session-1",
-			Timestamp:      timestamp,
-			CPUUsage:       float64(20 + i),
-			MemoryUsed:     4294967296 + uint64(i*100000000),
+			Hostname:        "test-host",
+			SessionID:       "test-session-1",
+			Timestamp:       timestamp,
+			CPUUsage:        float64(20 + i),
+			MemoryUsed:      4294967296 + uint64(i*100000000),
 			MemoryAvailable: 4294967296 - uint64(i*100000000),
-			DiskUsed:       53687091200 + uint64(i*1000000000),
-			DiskAvailable:  53687091200 - uint64(i*1000000000),
-			NetworkRx:      1073741824 + uint64(i*10000000),
-			NetworkTx:      2147483648 + uint64(i*20000000),
-			LoadAvg:        1.0 + float64(i)*0.1,
-			ProcessCount:   150 + i,
+			DiskUsed:        53687091200 + uint64(i*1000000000),
+			DiskAvailable:   53687091200 - uint64(i*1000000000),
+			NetworkRx:       1073741824 + uint64(i*10000000),
+			NetworkTx:       2147483648 + uint64(i*20000000),
+			LoadAvg:         1.0 + float64(i)*0.1,
+			ProcessCount:    150 + i,
 		})
 	}
 
@@ -628,8 +628,8 @@ func TestExportService_FormatBytes(t *testing.T) {
 	service := &ExportService{}
 
 	tests := []struct {
-		bytes     uint64
-		expected  string
+		bytes    uint64
+		expected string
 	}{
 		{512, "512 B"},
 		{1024, "1.0 KiB"},

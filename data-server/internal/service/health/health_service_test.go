@@ -521,7 +521,7 @@ func TestHealthService_UpdateConfig(t *testing.T) {
 
 	// Test updating config
 	newConfig := &Config{
-		Version:      "new-version",
+		Version:         "new-version",
 		MemoryThreshold: 1024,
 	}
 	mockLogger.On("WithField", mock.Anything, mock.Anything).Return(mockLogger)

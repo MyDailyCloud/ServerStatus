@@ -295,12 +295,12 @@ func TestNewWebSocketService_CustomConfig(t *testing.T) {
 
 	// Create custom config
 	customConfig := &Config{
-		ReadTimeout:              30 * time.Second,
-		WriteTimeout:             5 * time.Second,
-		PingPeriod:               25 * time.Second,
-		MaxTotalConnections:      500,
-		RequireAuth:              false,
-		StatsInterval:            15 * time.Second,
+		ReadTimeout:         30 * time.Second,
+		WriteTimeout:        5 * time.Second,
+		PingPeriod:          25 * time.Second,
+		MaxTotalConnections: 500,
+		RequireAuth:         false,
+		StatsInterval:       15 * time.Second,
 	}
 
 	service := NewWebSocketService(

@@ -30,13 +30,13 @@ type ComponentStatus struct {
 
 // HealthResponse 健康检查响应
 type HealthResponse struct {
-	Status    HealthStatus              `json:"status"`
-	Timestamp time.Time                 `json:"timestamp"`
-	Duration  time.Duration             `json:"duration"`
+	Status     HealthStatus                `json:"status"`
+	Timestamp  time.Time                   `json:"timestamp"`
+	Duration   time.Duration               `json:"duration"`
 	Components map[string]*ComponentStatus `json:"components"`
-	Version   string                    `json:"version"`
-	Uptime    time.Duration             `json:"uptime"`
-	Memory    *MemoryInfo               `json:"memory,omitempty"`
+	Version    string                      `json:"version"`
+	Uptime     time.Duration               `json:"uptime"`
+	Memory     *MemoryInfo                 `json:"memory,omitempty"`
 }
 
 // MemoryInfo 内存信息
@@ -56,22 +56,22 @@ type CheckRequest struct {
 
 // CheckResult 检查结果
 type CheckResult struct {
-	Healthy bool          `json:"healthy"`
-	Status  HealthStatus  `json:"status"`
-	Message string        `json:"message,omitempty"`
+	Healthy  bool          `json:"healthy"`
+	Status   HealthStatus  `json:"status"`
+	Message  string        `json:"message,omitempty"`
 	Duration time.Duration `json:"duration"`
 }
 
 // Config 健康检查服务配置
 type Config struct {
 	// 检查配置
-	Enabled        bool          `yaml:"enabled" json:"enabled"`
-	CheckInterval  time.Duration `yaml:"check_interval" json:"check_interval"`
-	Timeout        time.Duration `yaml:"timeout" json:"timeout"`
+	Enabled       bool          `yaml:"enabled" json:"enabled"`
+	CheckInterval time.Duration `yaml:"check_interval" json:"check_interval"`
+	Timeout       time.Duration `yaml:"timeout" json:"timeout"`
 
 	// 阈值配置
-	MemoryThreshold    uint64        `yaml:"memory_threshold" json:"memory_threshold"`    // 内存阈值 (MB)
-	ResponseThreshold  time.Duration `yaml:"response_threshold" json:"response_threshold"`  // 响应时间阈值
+	MemoryThreshold   uint64        `yaml:"memory_threshold" json:"memory_threshold"`     // 内存阈值 (MB)
+	ResponseThreshold time.Duration `yaml:"response_threshold" json:"response_threshold"` // 响应时间阈值
 
 	// 系统信息
 	Version string `yaml:"version" json:"version"`
@@ -204,9 +204,9 @@ func (s *HealthService) CheckHealth(ctx context.Context, req *CheckRequest) (*He
 	}
 
 	s.logger.WithFields(map[string]interface{}{
-		"status":      response.Status,
-		"duration":    response.Duration,
-		"components":  len(response.Components),
+		"status":     response.Status,
+		"duration":   response.Duration,
+		"components": len(response.Components),
 	}).Debug("Health check completed")
 
 	return response, nil
@@ -317,11 +317,11 @@ func (s *HealthService) checkSystem(ctx context.Context) *ComponentStatus {
 	startTime := time.Now()
 
 	metadata := map[string]interface{}{
-		"go_version":   runtime.Version(),
-		"goroutines":   runtime.NumGoroutine(),
-		"cpu_count":    runtime.NumCPU(),
-		"os":           runtime.GOOS,
-		"arch":         runtime.GOARCH,
+		"go_version": runtime.Version(),
+		"goroutines": runtime.NumGoroutine(),
+		"cpu_count":  runtime.NumCPU(),
+		"os":         runtime.GOOS,
+		"arch":       runtime.GOARCH,
 	}
 
 	// 检查Goroutine数量是否过高
@@ -377,8 +377,8 @@ func (s *HealthService) checkMemory(ctx context.Context) *ComponentStatus {
 		Message:  message,
 		Duration: time.Since(startTime),
 		Metadata: map[string]interface{}{
-			"memory_info": memoryInfo,
-			"alloc_mb":    allocMB,
+			"memory_info":  memoryInfo,
+			"alloc_mb":     allocMB,
 			"threshold_mb": thresholdMB,
 		},
 	}

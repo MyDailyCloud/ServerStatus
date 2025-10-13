@@ -23,7 +23,7 @@ func NewExportServiceFactory(repository repository.Repository, logger logger.Log
 func (f *ExportServiceFactory) CreateExportService() *ExportService {
 	// Try to access embedded repositories
 	switch repo := f.repository.(type) {
-	case interface{
+	case interface {
 		HistoryRepository() repository.HistoryRepository
 		CacheRepository() repository.CacheRepository
 	}:

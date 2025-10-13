@@ -26,19 +26,19 @@ import (
 )
 
 type SystemInfo struct {
-	Hostname      string              `json:"hostname"`
-	SessionID     string              `json:"session_id,omitempty"` // UUID session标识
-	Timestamp     time.Time           `json:"timestamp"`
-	CPU           CPUInfo             `json:"cpu"`
-	Memory        MemInfo             `json:"memory"`
-	Disk          DiskInfo            `json:"disk"`
-	Network       NetInfo             `json:"network"`
-	GPU           GPUInfo             `json:"gpu"`  // 保持兼容性，主GPU信息
-	GPUs          []GPUInfo           `json:"gpus"` // 所有GPU信息
-	OS            OSInfo              `json:"os"`
-	Temperature   TempInfo            `json:"temperature"`
-	ProjectKey    string              `json:"project_key,omitempty"`
-	UserResources []UserResourceInfo  `json:"user_resources,omitempty"` // 用户资源使用信息
+	Hostname      string             `json:"hostname"`
+	SessionID     string             `json:"session_id,omitempty"` // UUID session标识
+	Timestamp     time.Time          `json:"timestamp"`
+	CPU           CPUInfo            `json:"cpu"`
+	Memory        MemInfo            `json:"memory"`
+	Disk          DiskInfo           `json:"disk"`
+	Network       NetInfo            `json:"network"`
+	GPU           GPUInfo            `json:"gpu"`  // 保持兼容性，主GPU信息
+	GPUs          []GPUInfo          `json:"gpus"` // 所有GPU信息
+	OS            OSInfo             `json:"os"`
+	Temperature   TempInfo           `json:"temperature"`
+	ProjectKey    string             `json:"project_key,omitempty"`
+	UserResources []UserResourceInfo `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
 type CPUInfo struct {
@@ -62,13 +62,13 @@ type DiskInfo struct {
 }
 
 type NetInfo struct {
-	BytesSent    uint64        `json:"bytes_sent"`     // 总发送字节数
-	BytesRecv    uint64        `json:"bytes_recv"`     // 总接收字节数
-	PacketsSent  uint64        `json:"packets_sent"`   // 总发送包数
-	PacketsRecv  uint64        `json:"packets_recv"`   // 总接收包数
-	SpeedSent    float64       `json:"speed_sent"`     // 发送速率 (KB/s)
-	SpeedRecv    float64       `json:"speed_recv"`     // 接收速率 (KB/s)
-	Interfaces   []NetInterface `json:"interfaces"`     // 网卡详细信息
+	BytesSent   uint64         `json:"bytes_sent"`   // 总发送字节数
+	BytesRecv   uint64         `json:"bytes_recv"`   // 总接收字节数
+	PacketsSent uint64         `json:"packets_sent"` // 总发送包数
+	PacketsRecv uint64         `json:"packets_recv"` // 总接收包数
+	SpeedSent   float64        `json:"speed_sent"`   // 发送速率 (KB/s)
+	SpeedRecv   float64        `json:"speed_recv"`   // 接收速率 (KB/s)
+	Interfaces  []NetInterface `json:"interfaces"`   // 网卡详细信息
 }
 
 type NetInterface struct {
@@ -122,14 +122,14 @@ type UserResourceInfo struct {
 
 // ProcessInfo 进程信息
 type ProcessInfo struct {
-	PID          int32   `json:"pid"`
-	Name         string  `json:"name"`
-	Username     string  `json:"username"`
-	CPUPercent   float64 `json:"cpu_percent"`
-	MemoryMB     uint64  `json:"memory_mb"`
+	PID           int32   `json:"pid"`
+	Name          string  `json:"name"`
+	Username      string  `json:"username"`
+	CPUPercent    float64 `json:"cpu_percent"`
+	MemoryMB      uint64  `json:"memory_mb"`
 	MemoryPercent float64 `json:"memory_percent"`
-	Status       string  `json:"status"`
-	Cmdline      string  `json:"cmdline,omitempty"`
+	Status        string  `json:"status"`
+	Cmdline       string  `json:"cmdline,omitempty"`
 }
 
 type Config struct {
@@ -151,7 +151,7 @@ var (
 		EnableUserResources: true, // 默认启用用户资源监控
 	}
 	sessionID string // 全局session ID
-	
+
 	// 网络速率计算相关
 	lastNetworkStats map[string]psnet.IOCountersStat
 	lastStatsTime    time.Time
@@ -869,7 +869,7 @@ func generateAccessLinks() {
 
 	log.Println("")
 	log.Println("=== 🌐 监控访问信息 | Monitoring Access Info ===")
-	
+
 	// 显示API服务器信息
 	log.Printf("📡 API服务器 | API Server: %s", serverBaseURL)
 	log.Printf("📄 API文档 | API Documentation: %s/API.md", serverBaseURL)
@@ -905,7 +905,7 @@ func generateAccessLinks() {
 			log.Println("📱 使用步骤 | Usage Steps:")
 			log.Println("   1. 复制上述访问密钥 | Copy the access key above")
 			log.Println("   2. 部署前端UI | Deploy Frontend UI:")
-			log.Println("      cd frontend-ui && ./deploy.sh") 
+			log.Println("      cd frontend-ui && ./deploy.sh")
 			log.Println("   3. 在前端页面输入访问密钥 | Enter access key in frontend")
 			log.Println("      或在URL中使用 | Or use in URL: ?key=<access-key>")
 		}
@@ -928,7 +928,7 @@ func generateAccessLinks() {
 	if config.ProjectKey != "" && config.ServerKey != "" {
 		log.Printf("   🔑 生成访问密钥 | Generate access key: %s/api/generate-access-key", serverBaseURL)
 	}
-	
+
 	log.Println("")
 	log.Println("=======================================")
 	log.Println("")
@@ -1033,7 +1033,7 @@ func generateAccessKey(serverBaseURL string) string {
 func collectNetworkInfo() NetInfo {
 	var netInfo NetInfo
 	currentTime := time.Now()
-	
+
 	// 获取总的网络统计信息
 	allStats, err := psnet.IOCounters(false)
 	if err == nil && len(allStats) > 0 {
@@ -1042,7 +1042,7 @@ func collectNetworkInfo() NetInfo {
 		netInfo.PacketsSent = allStats[0].PacketsSent
 		netInfo.PacketsRecv = allStats[0].PacketsRecv
 	}
-	
+
 	// 获取各个网卡的详细信息
 	perInterfaceStats, err := psnet.IOCounters(true)
 	if err == nil {
@@ -1050,14 +1050,14 @@ func collectNetworkInfo() NetInfo {
 		if lastNetworkStats == nil {
 			lastNetworkStats = make(map[string]psnet.IOCountersStat)
 		}
-		
+
 		for _, stat := range perInterfaceStats {
 			// 跳过回环接口和无流量的接口
 			if stat.Name == "lo" || stat.Name == "Loopback" ||
 				(stat.BytesSent == 0 && stat.BytesRecv == 0) {
 				continue
 			}
-			
+
 			netInterface := NetInterface{
 				Name:        stat.Name,
 				BytesSent:   stat.BytesSent,
@@ -1066,31 +1066,31 @@ func collectNetworkInfo() NetInfo {
 				PacketsRecv: stat.PacketsRecv,
 				IsUp:        true, // gopsutil不直接提供状态，默认为true
 			}
-			
+
 			// 计算网速（如果有之前的数据）
 			if lastStat, exists := lastNetworkStats[stat.Name]; exists && !lastStatsTime.IsZero() {
 				timeDiff := currentTime.Sub(lastStatsTime).Seconds()
 				if timeDiff > 0 {
 					bytesSentDiff := stat.BytesSent - lastStat.BytesSent
 					bytesRecvDiff := stat.BytesRecv - lastStat.BytesRecv
-					
+
 					// 计算速率 (KB/s)
 					netInterface.SpeedSent = float64(bytesSentDiff) / timeDiff / 1024
 					netInterface.SpeedRecv = float64(bytesRecvDiff) / timeDiff / 1024
-					
+
 					// 累加到总速率
 					netInfo.SpeedSent += netInterface.SpeedSent
 					netInfo.SpeedRecv += netInterface.SpeedRecv
 				}
 			}
-			
+
 			// 获取IP地址和其他接口信息
 			interfaces, err := net.Interfaces()
 			if err == nil {
 				for _, iface := range interfaces {
 					if iface.Name == stat.Name {
 						netInterface.MTU = iface.MTU
-						
+
 						// 获取IP地址
 						addrs, err := iface.Addrs()
 						if err == nil {
@@ -1102,17 +1102,17 @@ func collectNetworkInfo() NetInfo {
 					}
 				}
 			}
-			
+
 			netInfo.Interfaces = append(netInfo.Interfaces, netInterface)
-			
+
 			// 更新缓存
 			lastNetworkStats[stat.Name] = stat
 		}
 	}
-	
+
 	// 更新时间戳
 	lastStatsTime = currentTime
-	
+
 	return netInfo
 }
 
