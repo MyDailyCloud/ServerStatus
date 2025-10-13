@@ -311,7 +311,7 @@ func registerSession() error {
 	if err != nil {
 		return fmt.Errorf("注册session失败 | Failed to register session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("注册session失败，状态码 | Failed to register session, status code: %d", resp.StatusCode)
@@ -435,7 +435,7 @@ func reportToServer(info *SystemInfo) error {
 	if err != nil {
 		return fmt.Errorf("发送请求失败: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("服务器返回错误状态: %d", resp.StatusCode)
@@ -954,44 +954,6 @@ func extractServerBaseURL(reportURL string) string {
 	return reportURL
 }
 
-// generateTokenLink 尝试生成访问令牌
-func generateTokenLink(serverBaseURL string) string {
-	if config.ProjectKey == "" {
-		return ""
-	}
-
-	// 构造生成令牌的请求
-	tokenURL := serverBaseURL + "/api/generate-token"
-	requestBody := map[string]string{
-		"project_key": config.ProjectKey,
-	}
-
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		return ""
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Post(tokenURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return ""
-	}
-
-	var tokenResponse struct {
-		Token string `json:"token"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
-		return ""
-	}
-
-	return tokenResponse.Token
-}
 
 // generateAccessKey 生成访问密钥
 func generateAccessKey(serverBaseURL string) string {
@@ -1012,7 +974,7 @@ func generateAccessKey(serverBaseURL string) string {
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return ""

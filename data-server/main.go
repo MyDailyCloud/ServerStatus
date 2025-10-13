@@ -890,15 +890,15 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 				// 获取总数用于分页
 				totalCount, _ = data.database.GetServerCount(projectKey)
 
-				// 缓存查询结果（仅缓存第一页）
-				if useCache && serverConfig.EnableCache && page == 1 {
-					go func() {
-						cacheCtx := context.Background()
-						cacheManager.SetServersList(cacheCtx, projectKey, servers)
-						cacheManager.SetServerCount(cacheCtx, projectKey, totalCount)
-						log.Printf("服务器列表已缓存: %d 个服务器", len(servers))
-					}()
-				}
+			// 缓存查询结果（仅缓存第一页）
+			if useCache && serverConfig.EnableCache && page == 1 {
+				go func() {
+					cacheCtx := context.Background()
+					_ = cacheManager.SetServersList(cacheCtx, projectKey, servers)
+					_ = cacheManager.SetServerCount(cacheCtx, projectKey, totalCount)
+					log.Printf("服务器列表已缓存: %d 个服务器", len(servers))
+				}()
+			}
 			}
 		} else {
 			// 从内存获取数据
@@ -1210,7 +1210,7 @@ func handleGetServerByAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(filteredServer)
+	_ = json.NewEncoder(w).Encode(filteredServer)
 }
 
 // handleGetServerBySessionID 根据访问密钥和sessionID获取特定服务器详情
@@ -1254,7 +1254,7 @@ func handleGetServerBySessionID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(filteredServer)
+	_ = json.NewEncoder(w).Encode(filteredServer)
 }
 
 // isServerMatchingAccessKey 检查服务器数据是否匹配访问密钥
@@ -1356,9 +1356,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	if serverConfig.EnableCache {
 		cachedResponse, err := cacheManager.GetUUIDStats(ctx)
 		if err == nil && len(cachedResponse) > 0 {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(cachedResponse)
-			log.Printf("从Redis缓存获取UUID统计")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cachedResponse)
+		log.Printf("从Redis缓存获取UUID统计")
 			return
 		}
 	}
@@ -1368,9 +1368,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	cacheValid := time.Since(data.uuidCacheTime) < time.Minute
 	if cacheValid && len(data.uuidStatsCache) > 0 {
 		// 使用内存缓存数据
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(data.uuidStatsCache)
-		data.uuidCacheMutex.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(data.uuidStatsCache)
+	data.uuidCacheMutex.RUnlock()
 		return
 	}
 	data.uuidCacheMutex.RUnlock()
@@ -1397,9 +1397,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	// 更新Redis缓存
 	if serverConfig.EnableCache {
 		go func() {
-			cacheCtx := context.Background()
-			cacheManager.SetUUIDStats(cacheCtx, response)
-			log.Printf("UUID统计已缓存到Redis")
+		cacheCtx := context.Background()
+		_ = cacheManager.SetUUIDStats(cacheCtx, response)
+		log.Printf("UUID统计已缓存到Redis")
 		}()
 	}
 
@@ -1836,7 +1836,7 @@ func handleReloadConfig(w http.ResponseWriter, r *http.Request) {
 		log.Printf("配置重载失败: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   err.Error(),
 			"time":    time.Now().UTC().Format(time.RFC3339),
@@ -1860,7 +1860,7 @@ func handleReloadConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "配置重载成功",
 		"time":    time.Now().UTC().Format(time.RFC3339),
@@ -1962,7 +1962,7 @@ func reloadServerConfig() error {
 		} else if !fileConfig.EnableCache && serverConfig.EnableCache {
 			// 禁用缓存
 			if cacheManager != nil {
-				cacheManager.Close()
+				_ = cacheManager.Close()
 			}
 			cacheManager = NewCacheManager("", "", 0)
 		}
@@ -1974,7 +1974,7 @@ func reloadServerConfig() error {
 		if fileConfig.RedisAddr != "" && fileConfig.RedisAddr != serverConfig.RedisAddr {
 			log.Printf("🔄 Redis地址更新: %s -> %s", serverConfig.RedisAddr, fileConfig.RedisAddr)
 			if cacheManager != nil {
-				cacheManager.Close()
+				_ = cacheManager.Close()
 			}
 			cacheManager = NewCacheManager(fileConfig.RedisAddr, fileConfig.RedisPassword, fileConfig.RedisDB)
 		}

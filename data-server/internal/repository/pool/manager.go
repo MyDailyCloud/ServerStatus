@@ -113,7 +113,7 @@ func (p *ConnectionPool) GetConnection() (*sql.DB, error) {
 			} else {
 				// 连接无效，从池中移除
 				p.removeConnection(i)
-				conn.Close()
+				_ = conn.Close()
 			}
 		}
 	}
@@ -202,7 +202,7 @@ func (p *ConnectionPool) Close() error {
 
 	// 关闭所有连接
 	for _, conn := range p.connections {
-		conn.Close()
+		_ = conn.Close()
 	}
 
 	// 清理资源

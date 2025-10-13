@@ -754,7 +754,7 @@ func TestWebSocketService_HandleConnection_Integration(t *testing.T) {
 	defer conn.Close()
 
 	// Test message reception (should receive auth request if auth required, or system message)
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, message, err := conn.ReadMessage()
 	require.NoError(t, err)
 
