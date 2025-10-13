@@ -63,3 +63,8 @@ local-test-run/
 test-*.sh
 local-test.sh
 docker-test.sh
+
+# Database files
+*.db
+data/
+data-server/data/
