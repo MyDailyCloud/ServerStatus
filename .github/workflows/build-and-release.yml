@@ -137,6 +137,10 @@ jobs:
       run: |
         mkdir -p release-final
         find artifacts -name "*" -type f -exec cp {} release-final/ \;
+        
+        # Copy install.sh from repository root
+        cp install.sh release-final/install.sh
+        chmod +x release-final/install.sh
 
         # 重命名文件为更友好的名称
         cd release-final
@@ -186,6 +190,9 @@ jobs:
 
           ## 📦 下载文件
 
+          ### 自动安装脚本
+          - `install.sh` - 自动安装脚本（支持 Linux/macOS）
+
           ### Linux
           - `data-server-linux` - 数据服务器 (内存模式)
           - `monitor-agent-linux` - 监控客户端
@@ -200,6 +207,20 @@ jobs:
 
           ## 🚀 快速开始
 
+          ### 使用自动安装脚本（推荐）
+          ```bash
+          # 下载安装脚本
+          curl -L https://github.com/MyDailyCloud/ServerStatus/releases/download/${{ github.ref_name }}/install.sh -o install.sh
+          chmod +x install.sh
+          
+          # 安装服务器
+          ./install.sh server --port 8080 --key your-key
+          
+          # 安装客户端
+          ./install.sh client --url http://your-server:8080/api/data --key your-key
+          ```
+
+          ### 手动安装
           ```bash
           # 启动数据服务器
           ./data-server-linux -port 8080
