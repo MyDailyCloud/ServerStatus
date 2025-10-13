@@ -954,7 +954,6 @@ func extractServerBaseURL(reportURL string) string {
 	return reportURL
 }
 
-
 // generateAccessKey 生成访问密钥
 func generateAccessKey(serverBaseURL string) string {
 	accessKeyURL := serverBaseURL + "/api/generate-access-key"

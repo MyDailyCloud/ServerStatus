@@ -890,15 +890,15 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 				// 获取总数用于分页
 				totalCount, _ = data.database.GetServerCount(projectKey)
 
-			// 缓存查询结果（仅缓存第一页）
-			if useCache && serverConfig.EnableCache && page == 1 {
-				go func() {
-					cacheCtx := context.Background()
-					_ = cacheManager.SetServersList(cacheCtx, projectKey, servers)
-					_ = cacheManager.SetServerCount(cacheCtx, projectKey, totalCount)
-					log.Printf("服务器列表已缓存: %d 个服务器", len(servers))
-				}()
-			}
+				// 缓存查询结果（仅缓存第一页）
+				if useCache && serverConfig.EnableCache && page == 1 {
+					go func() {
+						cacheCtx := context.Background()
+						_ = cacheManager.SetServersList(cacheCtx, projectKey, servers)
+						_ = cacheManager.SetServerCount(cacheCtx, projectKey, totalCount)
+						log.Printf("服务器列表已缓存: %d 个服务器", len(servers))
+					}()
+				}
 			}
 		} else {
 			// 从内存获取数据
@@ -1356,9 +1356,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	if serverConfig.EnableCache {
 		cachedResponse, err := cacheManager.GetUUIDStats(ctx)
 		if err == nil && len(cachedResponse) > 0 {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(cachedResponse)
-		log.Printf("从Redis缓存获取UUID统计")
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(cachedResponse)
+			log.Printf("从Redis缓存获取UUID统计")
 			return
 		}
 	}
@@ -1368,9 +1368,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	cacheValid := time.Since(data.uuidCacheTime) < time.Minute
 	if cacheValid && len(data.uuidStatsCache) > 0 {
 		// 使用内存缓存数据
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(data.uuidStatsCache)
-	data.uuidCacheMutex.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(data.uuidStatsCache)
+		data.uuidCacheMutex.RUnlock()
 		return
 	}
 	data.uuidCacheMutex.RUnlock()
@@ -1397,9 +1397,9 @@ func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	// 更新Redis缓存
 	if serverConfig.EnableCache {
 		go func() {
-		cacheCtx := context.Background()
-		_ = cacheManager.SetUUIDStats(cacheCtx, response)
-		log.Printf("UUID统计已缓存到Redis")
+			cacheCtx := context.Background()
+			_ = cacheManager.SetUUIDStats(cacheCtx, response)
+			log.Printf("UUID统计已缓存到Redis")
 		}()
 	}
 

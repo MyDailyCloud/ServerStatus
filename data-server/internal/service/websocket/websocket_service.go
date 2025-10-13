@@ -318,11 +318,11 @@ func (s *WebSocketService) readPump(ctx context.Context, client *ClientInfo) {
 		if messageType == websocket.TextMessage || messageType == websocket.BinaryMessage {
 			s.handleMessage(client, data)
 
-		// 停止认证计时器
-		if authTimer.Stop() {
-			// 设置正常的读取超时
-			_ = conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
-		}
+			// 停止认证计时器
+			if authTimer.Stop() {
+				// 设置正常的读取超时
+				_ = conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
+			}
 		}
 
 		// 更新最后活跃时间
