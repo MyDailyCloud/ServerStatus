@@ -17,9 +17,9 @@ import (
 
 // ExportService 数据导出服务
 type ExportService struct {
-	historyRepo  repository.HistoryRepository
-	cacheRepo    repository.CacheRepository
-	logger       logger.Logger
+	historyRepo repository.HistoryRepository
+	cacheRepo   repository.CacheRepository
+	logger      logger.Logger
 }
 
 // NewExportService 创建数据导出服务
@@ -45,14 +45,14 @@ const (
 
 // ExportRequest 导出请求
 type ExportRequest struct {
-	ProjectKey   string            `json:"project_key"`
-	Hostnames    []string          `json:"hostnames,omitempty"`
-	StartTime    time.Time         `json:"start_time"`
-	EndTime      time.Time         `json:"end_time"`
-	Format       ExportFormat      `json:"format"`
-	IncludeTypes []ExportDataType  `json:"include_types"`
-	Limit        int               `json:"limit,omitempty"`
-	Offset       int               `json:"offset,omitempty"`
+	ProjectKey   string           `json:"project_key"`
+	Hostnames    []string         `json:"hostnames,omitempty"`
+	StartTime    time.Time        `json:"start_time"`
+	EndTime      time.Time        `json:"end_time"`
+	Format       ExportFormat     `json:"format"`
+	IncludeTypes []ExportDataType `json:"include_types"`
+	Limit        int              `json:"limit,omitempty"`
+	Offset       int              `json:"offset,omitempty"`
 }
 
 // ExportDataType 导出数据类型
@@ -66,13 +66,13 @@ const (
 
 // ExportResult 导出结果
 type ExportResult struct {
-	Filename     string            `json:"filename"`
-	ContentType  string            `json:"content_type"`
-	Size         int64             `json:"size"`
-	RecordCount  int               `json:"record_count"`
-	ExportTime   time.Duration     `json:"export_time"`
-	Data         io.ReadCloser     `json:"-"`
-	Metadata     map[string]interface{} `json:"metadata"`
+	Filename    string                 `json:"filename"`
+	ContentType string                 `json:"content_type"`
+	Size        int64                  `json:"size"`
+	RecordCount int                    `json:"record_count"`
+	ExportTime  time.Duration          `json:"export_time"`
+	Data        io.ReadCloser          `json:"-"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 // ExportServers 导出服务器信息
@@ -107,12 +107,12 @@ func (s *ExportService) ExportServers(ctx context.Context, req *ExportRequest) (
 
 	result.ExportTime = time.Since(startTime)
 	result.Metadata = map[string]interface{}{
-		"export_type":     "servers",
-		"project_key":     req.ProjectKey,
-		"server_count":    len(servers),
-		"start_time":      req.StartTime,
-		"end_time":        req.EndTime,
-		"include_types":   req.IncludeTypes,
+		"export_type":   "servers",
+		"project_key":   req.ProjectKey,
+		"server_count":  len(servers),
+		"start_time":    req.StartTime,
+		"end_time":      req.EndTime,
+		"include_types": req.IncludeTypes,
 	}
 
 	s.logger.WithFields(map[string]interface{}{
@@ -157,11 +157,11 @@ func (s *ExportService) ExportHistory(ctx context.Context, req *ExportRequest) (
 
 	result.ExportTime = time.Since(startTime)
 	result.Metadata = map[string]interface{}{
-		"export_type":     "history",
-		"project_key":     req.ProjectKey,
-		"record_count":    len(historyData),
-		"start_time":      req.StartTime,
-		"end_time":        req.EndTime,
+		"export_type":  "history",
+		"project_key":  req.ProjectKey,
+		"record_count": len(historyData),
+		"start_time":   req.StartTime,
+		"end_time":     req.EndTime,
 	}
 
 	s.logger.WithFields(map[string]interface{}{
@@ -311,10 +311,10 @@ func (s *ExportService) convertHistoryDataToSystemInfo(data *models.HistoryData)
 	}
 
 	return &models.SystemInfo{
-		Hostname:    data.Hostname,
-		SessionID:   data.SessionID,
-		Timestamp:   data.Timestamp,
-		ProjectKey:  data.ProjectKey,
+		Hostname:   data.Hostname,
+		SessionID:  data.SessionID,
+		Timestamp:  data.Timestamp,
+		ProjectKey: data.ProjectKey,
 		CPU: models.CPUInfo{
 			UsagePercent: data.CPUUsage,
 		},
@@ -439,12 +439,12 @@ func (s *ExportService) exportServersToJSON(ctx context.Context, systemInfos []*
 	// 构建导出数据结构
 	exportData := map[string]interface{}{
 		"metadata": map[string]interface{}{
-			"export_time":    time.Now().Format(time.RFC3339),
-			"project_key":    req.ProjectKey,
-			"total_records":  len(systemInfos),
-			"include_types":  req.IncludeTypes,
-			"start_time":     req.StartTime.Format(time.RFC3339),
-			"end_time":       req.EndTime.Format(time.RFC3339),
+			"export_time":   time.Now().Format(time.RFC3339),
+			"project_key":   req.ProjectKey,
+			"total_records": len(systemInfos),
+			"include_types": req.IncludeTypes,
+			"start_time":    req.StartTime.Format(time.RFC3339),
+			"end_time":      req.EndTime.Format(time.RFC3339),
 		},
 		"system_info": systemInfos,
 	}
@@ -471,11 +471,11 @@ func (s *ExportService) exportHistoryToJSON(ctx context.Context, history []*mode
 	// 构建导出数据结构
 	exportData := map[string]interface{}{
 		"metadata": map[string]interface{}{
-			"export_time":     time.Now().Format(time.RFC3339),
-			"project_key":     req.ProjectKey,
-			"total_records":   len(history),
-			"start_time":      req.StartTime.Format(time.RFC3339),
-			"end_time":        req.EndTime.Format(time.RFC3339),
+			"export_time":   time.Now().Format(time.RFC3339),
+			"project_key":   req.ProjectKey,
+			"total_records": len(history),
+			"start_time":    req.StartTime.Format(time.RFC3339),
+			"end_time":      req.EndTime.Format(time.RFC3339),
 		},
 		"history": history,
 	}

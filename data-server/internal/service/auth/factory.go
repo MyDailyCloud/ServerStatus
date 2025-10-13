@@ -23,7 +23,7 @@ func NewAuthServiceFactory(repository repository.Repository, logger logger.Logge
 func (f *AuthServiceFactory) CreateAuthService(config *Config) *AuthService {
 	// 尝试访问嵌入的repositories
 	switch repo := f.repository.(type) {
-	case interface{
+	case interface {
 		AccessKeyRepository() repository.AccessKeyRepository
 		CacheRepository() repository.CacheRepository
 	}:

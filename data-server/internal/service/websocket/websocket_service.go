@@ -92,14 +92,14 @@ type AuthResponse struct {
 
 // Stats 统计信息
 type Stats struct {
-	TotalConnections    int           `json:"total_connections"`
-	ActiveConnections   int           `json:"active_connections"`
-	ProjectConnections  map[string]int `json:"project_connections"`
-	MessagesSent        int64         `json:"messages_sent"`
-	MessagesReceived    int64         `json:"messages_received"`
-	AverageMessageSize  int64         `json:"average_message_size"`
-	LastError           string        `json:"last_error,omitempty"`
-	LastActivity        time.Time     `json:"last_activity"`
+	TotalConnections   int            `json:"total_connections"`
+	ActiveConnections  int            `json:"active_connections"`
+	ProjectConnections map[string]int `json:"project_connections"`
+	MessagesSent       int64          `json:"messages_sent"`
+	MessagesReceived   int64          `json:"messages_received"`
+	AverageMessageSize int64          `json:"average_message_size"`
+	LastError          string         `json:"last_error,omitempty"`
+	LastActivity       time.Time      `json:"last_activity"`
 }
 
 // Config WebSocket服务配置
@@ -116,8 +116,8 @@ type Config struct {
 	MaxTotalConnections      int `yaml:"max_total_connections" json:"max_total_connections"`
 
 	// 认证配置
-	AuthTimeout   time.Duration `yaml:"auth_timeout" json:"auth_timeout"`
-	RequireAuth   bool          `yaml:"require_auth" json:"require_auth"`
+	AuthTimeout time.Duration `yaml:"auth_timeout" json:"auth_timeout"`
+	RequireAuth bool          `yaml:"require_auth" json:"require_auth"`
 
 	// 统计配置
 	StatsInterval time.Duration `yaml:"stats_interval" json:"stats_interval"`
@@ -126,23 +126,23 @@ type Config struct {
 // DefaultConfig 默认配置
 func DefaultConfig() *Config {
 	return &Config{
-		ReadTimeout:               60 * time.Second,
-		WriteTimeout:              10 * time.Second,
-		PingPeriod:                54 * time.Second,
-		PongWait:                  60 * time.Second,
-		MaxMessageSize:            1024 * 1024, // 1MB
-		MaxConnectionsPerProject:  100,
-		MaxTotalConnections:       1000,
-		AuthTimeout:               10 * time.Second,
-		RequireAuth:               true,
-		StatsInterval:             30 * time.Second,
+		ReadTimeout:              60 * time.Second,
+		WriteTimeout:             10 * time.Second,
+		PingPeriod:               54 * time.Second,
+		PongWait:                 60 * time.Second,
+		MaxMessageSize:           1024 * 1024, // 1MB
+		MaxConnectionsPerProject: 100,
+		MaxTotalConnections:      1000,
+		AuthTimeout:              10 * time.Second,
+		RequireAuth:              true,
+		StatsInterval:            30 * time.Second,
 	}
 }
 
 // WebSocketService WebSocket服务
 type WebSocketService struct {
-	clients      map[string]*ClientInfo
-	clientsMutex sync.RWMutex
+	clients       map[string]*ClientInfo
+	clientsMutex  sync.RWMutex
 	subscriptions map[string]map[MessageType]bool
 	subsMutex     sync.RWMutex
 	stats         *Stats
@@ -156,10 +156,10 @@ type WebSocketService struct {
 	logger        logger.Logger
 
 	// 配置和状态
-	config      *Config
-	upgrader    websocket.Upgrader
-	shutdown    chan struct{}
-	wg          sync.WaitGroup
+	config   *Config
+	upgrader websocket.Upgrader
+	shutdown chan struct{}
+	wg       sync.WaitGroup
 }
 
 // AuthService 认证服务接口
@@ -207,8 +207,8 @@ func NewWebSocketService(
 
 	// 配置WebSocket upgrader
 	service.upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
 		HandshakeTimeout: 10 * time.Second,
 		CheckOrigin: func(r *http.Request) bool {
 			// 在生产环境中应该检查Origin
@@ -782,12 +782,12 @@ func (s *WebSocketService) performStatsUpdate() {
 	s.statsMutex.RUnlock()
 
 	s.logger.WithFields(map[string]interface{}{
-		"active_connections":    stats.ActiveConnections,
-		"total_connections":     stats.TotalConnections,
-		"messages_sent":         stats.MessagesSent,
-		"messages_received":     stats.MessagesReceived,
-		"average_message_size":  stats.AverageMessageSize,
-		"project_connections":   len(stats.ProjectConnections),
+		"active_connections":   stats.ActiveConnections,
+		"total_connections":    stats.TotalConnections,
+		"messages_sent":        stats.MessagesSent,
+		"messages_received":    stats.MessagesReceived,
+		"average_message_size": stats.AverageMessageSize,
+		"project_connections":  len(stats.ProjectConnections),
 	}).Debug("WebSocket service statistics")
 }
 

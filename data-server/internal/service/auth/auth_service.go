@@ -78,9 +78,9 @@ const (
 
 // AuthRequest 认证请求
 type AuthRequest struct {
-	AccessKey  string     `json:"access_key"`
-	ProjectKey string     `json:"project_key,omitempty"`
-	Permission Permission `json:"permission,omitempty"`
+	AccessKey  string      `json:"access_key"`
+	ProjectKey string      `json:"project_key,omitempty"`
+	Permission Permission  `json:"permission,omitempty"`
 	ClientInfo *ClientInfo `json:"client_info,omitempty"`
 }
 
@@ -93,11 +93,11 @@ type ClientInfo struct {
 
 // AuthResult 认证结果
 type AuthResult struct {
-	Success     bool           `json:"success"`
-	ProjectKey  string         `json:"project_key,omitempty"`
-	Permissions []Permission   `json:"permissions,omitempty"`
-	Message     string         `json:"message,omitempty"`
-	TTL         time.Duration  `json:"ttl,omitempty"`
+	Success     bool          `json:"success"`
+	ProjectKey  string        `json:"project_key,omitempty"`
+	Permissions []Permission  `json:"permissions,omitempty"`
+	Message     string        `json:"message,omitempty"`
+	TTL         time.Duration `json:"ttl,omitempty"`
 }
 
 // ValidateAccessKey 验证访问密钥
