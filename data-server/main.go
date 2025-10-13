@@ -1446,6 +1446,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	allowedFiles := map[string]string{
 		"monitor-agent-linux": "./monitor-agent-linux",
 		"install-client.sh":   "./install-client.sh",
+		"install.sh":          "./install.sh",
 	}
 
 	filePath, allowed := allowedFiles[filename]
