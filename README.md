@@ -7,17 +7,15 @@
 
 A **simple and easy-to-use** server monitoring system that helps you keep track of your servers effortlessly. Deploy in just 3 minutes!
 
-[中文文档](#中文文档) | [English](#english-documentation)
+**[中文文档](README_CN.md)** | **English**
 
 ---
 
-## English Documentation
-
-### 🎯 Introduction
+## 🎯 Introduction
 
 ServerStatus is a lightweight server monitoring solution built with Go, supporting real-time data collection, multi-platform deployment, and flexible authentication mechanisms. No complex configuration required - download and run!
 
-### ✨ Features
+## ✨ Features
 
 - 🚀 **Super Simple** - One command to start, 3 minutes to deploy
 - 📊 **Real-time Monitoring** - Comprehensive monitoring of CPU, Memory, Disk, Network, GPU, and Temperature
@@ -180,179 +178,266 @@ screen -S serverstatus
 nohup ./data-server-linux-amd64 -key public -port 8080 > server.log 2>&1 &
 ```
 
-### 📚 More Documentation
+## 📊 Monitoring Features
 
-Want to learn more? Check out the complete documentation:
+### System Monitoring
+- **CPU Usage** - Real-time CPU utilization and load average
+- **Memory** - RAM and swap usage monitoring
+- **Disk** - Disk space usage for all partitions
+- **Network** - Real-time network speed and traffic statistics
+- **Temperature** - CPU and GPU temperature monitoring
+- **GPU** - NVIDIA GPU utilization, memory, and temperature
+- **Per-User Resources** - Resource usage breakdown by user
 
-- **[Full Chinese Documentation](docs/README_zh.md)** - Detailed installation, configuration, and advanced features
-- **[English Documentation](docs/README.md)** - Full documentation in English
-- **[Architecture Design](CLAUDE.md)** - System architecture and technical implementation
-- **[Development Roadmap](ROADMAP.md)** - Project planning and future features
+### Dashboard Features
+- **Real-time Updates** - WebSocket-based live data updates
+- **Server Grouping** - Organize servers by project or environment
+- **Search & Filter** - Quick search and status-based filtering
+- **Smart Alerts** - Automatic alerts for resource thresholds
+- **Data Export** - Export server data in CSV or JSON format
+- **Theme Support** - Light and dark theme options
+- **Multi-language** - English and Chinese interface
 
-#### Advanced Features
+## 🔐 Authentication Modes
 
-- 🔐 **Dual-Key Authentication** - Enterprise-grade security
-- 📁 **Multi-Project Management** - Complete isolation between project servers
-- 🐳 **Docker Deployment** - One-click containerized deployment
-- 🌐 **Nginx Reverse Proxy** - Production environment best practices
-- 📊 **API Interface** - Develop your custom monitoring dashboard
+ServerStatus supports three authentication modes:
 
-See [Full Documentation](docs/README_zh.md) for details
+### 1. Public Mode (Default)
 
-### 🤝 Contributing
-
-All forms of contributions are welcome!
-
-- 🐛 **Report Bugs** - [Submit an Issue](https://github.com/MyDailyCloud/ServerStatus/issues)
-- ✨ **Feature Requests** - [Request a Feature](https://github.com/MyDailyCloud/ServerStatus/issues/new)
-- 📝 **Improve Documentation** - Help us improve the docs
-- 🌍 **Multi-language Support** - Add more languages
-
-### 📄 License
-
-This project is open-sourced under the MIT License and can be freely used and modified.
-
----
-
-## 中文文档
-
-### 🎯 简介
-
-ServerStatus 是一个基于 Go 语言开发的轻量级服务器监控解决方案，支持实时数据采集、多平台部署和灵活的认证机制。无需复杂配置，下载即用。
-
-### ✨ 特点
-
-- 🚀 **超级简单** - 一行命令启动，3分钟完成部署
-- 📊 **实时监控** - CPU、内存、磁盘、网络、GPU、温度全面监控
-- 🌍 **跨平台** - 支持 Linux、macOS、Windows 多平台
-- 🔐 **灵活认证** - 支持公开模式、项目密钥、双密钥认证
-- 💾 **数据持久化** - SQLite 存储历史数据，可选 Redis 缓存
-
-### 🚀 快速开始
-
-#### 方式 A：自动化安装（推荐）
-
-下载并运行自动安装脚本：
+No authentication required, suitable for testing and demos:
 
 ```bash
-# 下载安装脚本
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/install.sh -o install.sh
-chmod +x install.sh
+# Server
+./data-server -key public -port 8080
 
-# 安装服务器（交互式模式）
-./install.sh server
+# Agent
+./monitor-agent -url http://server:8080/api/data -key public
 
-# 安装监控代理（交互式模式）
-./install.sh client
+# Access
+http://server:8080/?key=public
 ```
 
-脚本将自动：
-- 检测您的平台和架构
-- 下载适当的二进制文件
-- 生成配置文件
-- 设置启动脚本
+### 2. Project Key Mode
 
-#### 方式 B：手动安装
-
-**步骤 1：下载并启动服务器**
+Separate servers by project using project keys:
 
 ```bash
-# Linux (x86_64)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/data-server-linux-amd64
-chmod +x data-server-linux-amd64
-./data-server-linux-amd64 -key public -port 8080
+# Agent for Project A
+./monitor-agent -url http://server:8080/api/data -key project-a
+
+# Agent for Project B
+./monitor-agent -url http://server:8080/api/data -key project-b
 ```
 
-<details>
-<summary>其他平台下载链接</summary>
+### 3. Dual-Key Authentication Mode
+
+Enterprise-grade security with server key and project key:
 
 ```bash
-# Linux (ARM64)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/data-server-linux-arm64
+# Server with authentication
+./data-server -key public -port 8080 -server-key "your-secret-key"
 
-# macOS (Intel)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/data-server-darwin-amd64
+# Agent with both keys
+./monitor-agent -url http://server:8080/api/data \
+  -key project-a \
+  -server-key "your-secret-key"
 
-# macOS (Apple Silicon)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/data-server-darwin-arm64
+# Generate access key for frontend
+curl -X POST http://server:8080/api/generate-access-key \
+  -H "Content-Type: application/json" \
+  -d '{"server_key": "your-secret-key", "project_key": "project-a"}'
 
-# Windows - 下载后双击运行
-https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/data-server-windows-amd64.exe
+# Access with generated key
+http://server:8080/?key=generated-access-key
 ```
 
-</details>
+## 🐳 Docker Deployment
 
-服务器启动后，您将看到类似输出：
-
-```
-2025/10/13 17:35:51 启动 ServerStatus Monitor Data Server...
-2025/10/13 17:35:51 端口: 8080
-2025/10/13 17:35:51 API服务器启动在 0.0.0.0:8080
-```
-
-**步骤 2：下载并启动监控代理**
-
-在每台需要监控的服务器上执行：
+### Quick Start with Docker
 
 ```bash
-# Linux (x86_64)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/monitor-agent-linux-amd64
-chmod +x monitor-agent-linux-amd64
-./monitor-agent-linux-amd64 -url http://您的服务器IP:8080/api/data -key public
+# Run server
+docker run -d -p 8080:8080 --name serverstatus-server \
+  -v ./data:/app/data \
+  mydailycloud/serverstatus:latest
+
+# Run agent on monitored servers
+docker run -d --name serverstatus-agent \
+  mydailycloud/serverstatus-agent:latest \
+  -url http://server-ip:8080/api/data \
+  -key public
 ```
 
-<details>
-<summary>其他平台下载链接</summary>
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  serverstatus-server:
+    image: mydailycloud/serverstatus:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=8080
+      - PROJECT_KEY=public
+      - SERVER_KEY=your-secret-key
+    restart: unless-stopped
+
+  serverstatus-agent:
+    image: mydailycloud/serverstatus-agent:latest
+    environment:
+      - SERVER_URL=http://serverstatus-server:8080/api/data
+      - PROJECT_KEY=public
+      - SERVER_KEY=your-secret-key
+    depends_on:
+      - serverstatus-server
+    restart: unless-stopped
+```
+
+## 🔧 Configuration
+
+### Server Configuration
+
+Configuration file: `server-config.json`
+
+```json
+{
+  "host": "0.0.0.0",
+  "port": 8080,
+  "project_key": "public",
+  "server_key": "your-secret-key",
+  "require_auth": false,
+  "database_path": "./data/serverstatus.db",
+  "enable_cache": true,
+  "redis_addr": "localhost:6379"
+}
+```
+
+Or use command-line arguments:
 
 ```bash
-# Linux (ARM64)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/monitor-agent-linux-arm64
-
-# macOS (Intel)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/monitor-agent-darwin-amd64
-
-# macOS (Apple Silicon)
-wget https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/monitor-agent-darwin-arm64
-
-# Windows - 下载后双击运行
-https://github.com/MyDailyCloud/ServerStatus/releases/download/v1.0.4/monitor-agent-windows-amd64.exe
+./data-server \
+  -port 8080 \
+  -key public \
+  -server-key "your-secret" \
+  -auth \
+  -db-path ./data/serverstatus.db
 ```
 
-</details>
+### Agent Configuration
 
-> **提示**：如果在本机测试，使用 `http://localhost:8080/api/data`
+Configuration file: `config.json`
 
-代理启动后，您将看到类似输出：
-
-```
-2025/10/13 17:36:30 启动 ServerStatus Monitor Agent...
-2025/10/13 17:36:30 Session注册成功: bf94d98f-b27e-4f9a-8256-9fc06abf9865
-2025/10/13 17:36:31 成功上报数据 - CPU: 0.4%, 内存: 2.9%, 磁盘: 8.4%
-```
-
-**步骤 3：访问监控面板**
-
-打开浏览器访问：
-
-```
-http://您的服务器IP:8080/?key=public
+```json
+{
+  "server_url": "http://server:8080/api/data",
+  "project_key": "public",
+  "server_key": "",
+  "report_interval": 5000000000,
+  "timeout": 10000000000,
+  "enable_user_resources": true
+}
 ```
 
-🎉 **完成！** 您现在可以在网页上看到服务器的实时监控数据了！
+Or use command-line arguments:
 
-### 🔧 常见问题
+```bash
+./monitor-agent \
+  -url http://server:8080/api/data \
+  -key public \
+  -server-key "your-secret" \
+  -interval 5 \
+  -hostname "custom-name"
+```
 
-#### ❓ 端口被占用怎么办？
+## 🌐 API Documentation
 
-更改启动端口：
+ServerStatus provides a complete RESTful API:
+
+### Server Endpoints
+
+```bash
+# Get all servers
+GET /api/servers
+
+# Get server by hostname
+GET /api/server/{hostname}
+
+# Get server count
+GET /api/uuid-count
+
+# Health check
+GET /api/health
+```
+
+### Project Endpoints
+
+```bash
+# Get servers for a project (with access key)
+GET /api/access/{access_key}/servers
+
+# Get server details for a project
+GET /api/access/{access_key}/server/{hostname}
+```
+
+### Authentication Endpoints
+
+```bash
+# Generate access key
+POST /api/generate-access-key
+Content-Type: application/json
+{
+  "server_key": "your-server-key",
+  "project_key": "project-name"
+}
+
+# Register session
+POST /api/register-session
+Content-Type: application/json
+{
+  "project_key": "public"
+}
+```
+
+### Data Collection Endpoint
+
+```bash
+# Report server data (used by agent)
+POST /api/data
+X-Project-Key: public
+X-Server-Key: your-secret (optional)
+Content-Type: application/json
+{
+  "session_id": "uuid",
+  "hostname": "server1",
+  ...
+}
+```
+
+### WebSocket Endpoint
+
+```bash
+# Real-time data updates
+WS /ws
+```
+
+For complete API documentation, visit: `http://your-server:8080/API.md`
+
+## 🛠️ Troubleshooting
+
+### ❓ Port Already in Use?
+
+Change the startup port:
 
 ```bash
 ./data-server-linux-amd64 -key public -port 9090
 ```
 
-#### ❓ 无法访问监控面板？
+### ❓ Cannot Access Monitoring Dashboard?
 
-检查防火墙是否开放端口：
+Check if the firewall allows the port:
 
 ```bash
 # Ubuntu/Debian
@@ -363,66 +448,278 @@ sudo firewall-cmd --add-port=8080/tcp --permanent
 sudo firewall-cmd --reload
 ```
 
-#### ❓ 代理连接失败？
+### ❓ Agent Connection Failed?
 
-1. 确认服务器 IP 地址正确
-2. 确认服务器端口（默认 8080）可访问
-3. 检查 `-key` 参数是否一致（服务器和代理都使用 `public`）
+1. Verify the server IP address is correct
+2. Verify the server port (default 8080) is accessible
+3. Check that the `-key` parameter matches (both server and agent use `public`)
+4. Check server logs for error messages
 
-#### ❓ 如何后台运行？
+### ❓ How to Run in Background?
 
-使用 `screen` 或 `nohup`：
+Use `screen` or `nohup`:
 
 ```bash
-# 使用 screen
+# Using screen
 screen -S serverstatus
 ./data-server-linux-amd64 -key public -port 8080
-# 按 Ctrl+A 再按 D 退出
+# Press Ctrl+A then D to detach
 
-# 使用 nohup
+# Using nohup
 nohup ./data-server-linux-amd64 -key public -port 8080 > server.log 2>&1 &
 ```
 
-### 📚 更多文档
+### ❓ How to Set Up as System Service?
 
-想了解更多功能？查看完整文档：
+Create a systemd service file:
 
-- **[完整中文文档](docs/README_zh.md)** - 详细的安装部署、配置说明、高级功能
-- **[English Documentation](docs/README.md)** - Full documentation in English
-- **[架构设计](CLAUDE.md)** - 系统架构和技术实现
-- **[开发路线图](ROADMAP.md)** - 项目规划和未来特性
+```bash
+# Create service file
+sudo nano /etc/systemd/system/serverstatus.service
+```
 
-#### 高级功能
+```ini
+[Unit]
+Description=ServerStatus Monitor
+After=network.target
 
-- 🔐 **双密钥认证模式** - 企业级安全认证
-- 📁 **多项目管理** - 不同项目服务器完全隔离
-- 🐳 **Docker 部署** - 容器化一键部署
-- 🌐 **Nginx 反向代理** - 生产环境最佳实践
-- 📊 **API 接口** - 自定义开发您的监控面板
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/serverstatus
+ExecStart=/opt/serverstatus/data-server -port 8080 -key public
+Restart=always
+RestartSec=5
 
-详见 [完整文档](docs/README_zh.md)
+[Install]
+WantedBy=multi-user.target
+```
 
-### 🤝 贡献
+```bash
+# Enable and start service
+sudo systemctl enable serverstatus
+sudo systemctl start serverstatus
+sudo systemctl status serverstatus
+```
 
-欢迎各种形式的贡献！
+### ❓ Redis Connection Failed?
 
-- 🐛 **报告 Bug** - [提交 Issue](https://github.com/MyDailyCloud/ServerStatus/issues)
-- ✨ **功能建议** - [功能请求](https://github.com/MyDailyCloud/ServerStatus/issues/new)
-- 📝 **改进文档** - 帮助完善文档
-- 🌍 **多语言支持** - 添加更多语言
+ServerStatus automatically falls back to in-memory cache if Redis is unavailable:
 
-### 📄 开源协议
+```
+2025/10/13 17:35:51 Redis connection failed, using in-memory cache only
+```
 
-本项目基于 MIT 协议开源，可自由使用和修改。
+This is normal and the system will continue to work. To enable Redis:
+
+```bash
+# Install Redis
+sudo apt-get install redis-server
+
+# Start Redis
+sudo systemctl start redis
+
+# Configure ServerStatus to use Redis
+./data-server -redis-addr localhost:6379
+```
+
+## 📚 Advanced Topics
+
+### Production Deployment with Nginx
+
+```nginx
+server {
+    listen 80;
+    server_name monitor.yourdomain.com;
+
+    # Frontend static files
+    location / {
+        root /var/www/serverstatus;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API proxy
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # WebSocket proxy
+    location /ws {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### Custom Frontend Development
+
+ServerStatus provides a complete API, allowing you to build custom frontends:
+
+#### React Example
+
+```jsx
+import React, { useState, useEffect } from 'react';
+
+function ServerMonitor() {
+    const [servers, setServers] = useState([]);
+    
+    useEffect(() => {
+        const fetchServers = async () => {
+            const response = await fetch('http://localhost:8080/api/servers');
+            setServers(await response.json());
+        };
+        
+        fetchServers();
+        const interval = setInterval(fetchServers, 3000);
+        return () => clearInterval(interval);
+    }, []);
+    
+    return (
+        <div>
+            {servers.map(server => (
+                <div key={server.hostname} className="server-card">
+                    <h3>{server.hostname}</h3>
+                    <div>CPU: {server.cpu_percent}%</div>
+                    <div>Memory: {server.memory_percent}%</div>
+                </div>
+            ))}
+        </div>
+    );
+}
+```
+
+#### Vue.js Example
+
+```vue
+<template>
+  <div class="server-grid">
+    <div v-for="server in servers" :key="server.hostname" class="server-card">
+      <h3>{{ server.hostname }}</h3>
+      <div>CPU: {{ server.cpu_percent }}%</div>
+      <div>Memory: {{ server.memory_percent }}%</div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const servers = ref([])
+let interval = null
+
+const fetchServers = async () => {
+  const response = await fetch('http://localhost:8080/api/servers')
+  servers.value = await response.json()
+}
+
+onMounted(() => {
+  fetchServers()
+  interval = setInterval(fetchServers, 3000)
+})
+
+onUnmounted(() => {
+  clearInterval(interval)
+})
+</script>
+```
+
+### Multi-Project Isolation
+
+Complete data isolation for different projects:
+
+```bash
+# Step 1: Generate access key for Project A
+curl -X POST http://server:8080/api/generate-access-key \
+  -H "Content-Type: application/json" \
+  -d '{"server_key": "your-secret", "project_key": "project-a"}'
+
+# Response: {"access_key": "abc123xyz789"}
+
+# Step 2: Deploy agents with project key
+./monitor-agent -url http://server:8080/api/data -key project-a
+
+# Step 3: Access project dashboard
+http://server:8080/?key=abc123xyz789
+```
+
+## 📖 More Documentation
+
+- **[Complete Chinese Documentation](README_CN.md)** - Full documentation in Chinese
+- **[Detailed Guide](docs/README.md)** - Comprehensive guide with examples
+- **[Architecture Design](CLAUDE.md)** - System architecture and technical implementation
+- **[Development Roadmap](ROADMAP.md)** - Project planning and future features
+- **[Demo Guide](docs/DEMO.md)** - Frontend/Backend separation demo
+- **[Access Key Demo](docs/ACCESS_KEY_DEMO.md)** - Access key functionality guide
+- **[User Resources](docs/USER_RESOURCES_README.md)** - Per-user resource monitoring
+
+## 🤝 Contributing
+
+All forms of contributions are welcome!
+
+- 🐛 **Report Bugs** - [Submit an Issue](https://github.com/MyDailyCloud/ServerStatus/issues)
+- ✨ **Feature Requests** - [Request a Feature](https://github.com/MyDailyCloud/ServerStatus/issues/new)
+- 📝 **Improve Documentation** - Help us improve the docs
+- 🌍 **Multi-language Support** - Add more languages
+- 🎨 **UI/UX Design** - Make the interface more beautiful
+
+### Development Workflow
+
+```bash
+# 1. Fork the project on GitHub
+# 2. Clone to local
+git clone https://github.com/yourusername/ServerStatus.git
+cd ServerStatus
+
+# 3. Create feature branch
+git checkout -b feature/awesome-feature
+
+# 4. Local development and testing
+cd data-server && go run main.go &
+cd ../frontend-ui && python3 -m http.server 3000
+
+# 5. Commit changes
+git add .
+git commit -m "Add awesome feature"
+git push origin feature/awesome-feature
+
+# 6. Create Pull Request on GitHub
+```
+
+## 📄 License
+
+This project is open-sourced under the MIT License and can be freely used and modified.
+
+## 🙏 Acknowledgments
+
+Thanks to the following projects and contributors:
+
+- [Go](https://golang.org/) - Backend programming language
+- [Chart.js](https://www.chartjs.org/) - Chart library
+- [gorilla/websocket](https://github.com/gorilla/websocket) - WebSocket library
+- All contributors and users who gave stars
+
+## 📞 Contact
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/MyDailyCloud/ServerStatus/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/MyDailyCloud/ServerStatus/discussions)
+- 📧 **Business**: admin@mydailycloud.com
+- 🌐 **Website**: https://serverstatus.mydailycloud.com
 
 ---
 
 <div align="center">
 
-### 🌟 If this project helps you, please give it a Star! / 如果这个项目对您有帮助，请给个 Star 支持一下！🌟
+### 🌟 If this project helps you, please give it a Star! 🌟
+
+**Making Server Monitoring Simple and Beautiful** ❤️
 
 [⭐ Star](https://github.com/MyDailyCloud/ServerStatus) • [🍴 Fork](https://github.com/MyDailyCloud/ServerStatus/fork) • [📢 Share](https://twitter.com/intent/tweet?text=Check%20out%20this%20awesome%20server%20monitoring%20project!&url=https://github.com/MyDailyCloud/ServerStatus)
 
-**Making Server Monitoring Simple and Beautiful / 让服务器监控变得简单而美好** ❤️
 
 </div>
