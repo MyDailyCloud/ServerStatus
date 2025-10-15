@@ -32,10 +32,12 @@ Server Options:
     --port PORT         Server port (default: 8080)
     --key KEY           Authentication key (default: public)
     --host HOST         Server host (default: 0.0.0.0)
+    --service           Install as system service (auto-start)
 
 Client Options:
     --url URL           Server API URL (default: http://localhost:8080/api/data)
     --key KEY           Authentication key (default: public)
+    --service           Install as system service (auto-start)
 
 Environment Variables:
     INSTALL_VERSION     Version to install (default: v1.0.4)
@@ -96,6 +98,148 @@ check_requirements() {
         echo "Install curl: sudo apt install curl (Ubuntu/Debian) or sudo yum install curl (CentOS/RHEL)"
         exit 1
     fi
+
+check_systemd() {
+    if command -v systemctl >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+setup_systemd_service() {
+    local service_type=$1
+    local service_name=$2
+    local exec_command=$3
+    local description=$4
+    
+    local systemd_dir="$HOME/.config/systemd/user"
+    local service_file="${systemd_dir}/${service_name}.service"
+    
+    echo -e "${YELLOW}Setting up systemd service...${NC}"
+    
+    mkdir -p "$systemd_dir"
+    
+    cat > "$service_file" << EOF
+[Unit]
+Description=${description}
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=${INSTALL_DIR}
+ExecStart=${exec_command}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
+EOF
+    
+    systemctl --user daemon-reload
+    systemctl --user enable "${service_name}.service"
+    systemctl --user start "${service_name}.service"
+    
+    echo -e "${GREEN}✅ Systemd service installed and started${NC}"
+    echo -e "${BLUE}Service name: ${service_name}${NC}"
+    echo ""
+    echo -e "${YELLOW}Manage service:${NC}"
+    echo -e "  systemctl --user status ${service_name}    # Check status"
+    echo -e "  systemctl --user stop ${service_name}      # Stop service"
+    echo -e "  systemctl --user restart ${service_name}   # Restart service"
+    echo -e "  journalctl --user -u ${service_name} -f    # View logs"
+}
+
+setup_launchd_service() {
+    local service_type=$1
+    local service_name=$2
+    local exec_command=$3
+    local description=$4
+    
+    local launchd_dir="$HOME/Library/LaunchAgents"
+    local plist_file="${launchd_dir}/${service_name}.plist"
+    
+    echo -e "${YELLOW}Setting up launchd service...${NC}"
+    
+    mkdir -p "$launchd_dir"
+    
+    cat > "$plist_file" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${service_name}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${exec_command}</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>${INSTALL_DIR}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${INSTALL_DIR}/${service_type}.log</string>
+    <key>StandardErrorPath</key>
+    <string>${INSTALL_DIR}/${service_type}.error.log</string>
+</dict>
+</plist>
+EOF
+    
+    launchctl load "$plist_file"
+    
+    echo -e "${GREEN}✅ Launchd service installed and started${NC}"
+    echo -e "${BLUE}Service name: ${service_name}${NC}"
+    echo ""
+    echo -e "${YELLOW}Manage service:${NC}"
+    echo -e "  launchctl list | grep ${service_name}     # Check status"
+    echo -e "  launchctl stop ${service_name}            # Stop service"
+    echo -e "  launchctl start ${service_name}           # Start service"
+    echo -e "  tail -f ${INSTALL_DIR}/${service_type}.log    # View logs"
+}
+
+setup_system_service() {
+    local service_type=$1
+    local exec_path=$2
+    local description=$3
+    
+    if [ "$OS_NAME" = "linux" ]; then
+        if check_systemd; then
+            if [ "$AUTO_INSTALL_SERVICE" = "yes" ]; then
+                install_service="y"
+            else
+                echo ""
+                read -p "Install as systemd service (auto-start on boot)? [y/N]: " install_service
+            fi
+            if [[ "$install_service" =~ ^[Yy]$ ]]; then
+                setup_systemd_service "$service_type" "serverstatus-${service_type}" "$exec_path" "$description"
+            else
+                echo -e "${YELLOW}Skipping service installation. You can run manually:${NC}"
+                echo -e "  cd ${INSTALL_DIR} && ./start-${service_type}.sh"
+            fi
+        else
+            echo -e "${YELLOW}Systemd not detected. Skipping service installation.${NC}"
+            echo -e "${YELLOW}You can run manually:${NC}"
+            echo -e "  cd ${INSTALL_DIR} && ./start-${service_type}.sh"
+        fi
+    elif [ "$OS_NAME" = "darwin" ]; then
+        if [ "$AUTO_INSTALL_SERVICE" = "yes" ]; then
+            install_service="y"
+        else
+            echo ""
+            read -p "Install as launchd service (auto-start on login)? [y/N]: " install_service
+        fi
+        if [[ "$install_service" =~ ^[Yy]$ ]]; then
+            setup_launchd_service "$service_type" "com.serverstatus.${service_type}" "$exec_path" "$description"
+        else
+            echo -e "${YELLOW}Skipping service installation. You can run manually:${NC}"
+            echo -e "  cd ${INSTALL_DIR} && ./start-${service_type}.sh"
+        fi
+    fi
+}
+
 }
 
 download_binary() {
@@ -174,6 +318,8 @@ EOF
     echo ""
     echo -e "${YELLOW}Run in background:${NC}"
     echo -e "  cd ${INSTALL_DIR} && nohup ./start-server.sh > server.log 2>&1 &"
+    
+    setup_system_service "server" "${INSTALL_DIR}/data-server -port ${SERVER_PORT} -key ${SERVER_KEY}" "ServerStatus Data Server"
 }
 
 install_client() {
@@ -203,6 +349,8 @@ EOF
     echo ""
     echo -e "${YELLOW}Run in background:${NC}"
     echo -e "  cd ${INSTALL_DIR} && nohup ./start-agent.sh > agent.log 2>&1 &"
+    
+    setup_system_service "agent" "${INSTALL_DIR}/monitor-agent -url ${CLIENT_URL} -key ${SERVER_KEY}" "ServerStatus Monitor Agent"
 }
 
 interactive_mode() {
@@ -301,6 +449,10 @@ main() {
             --url)
                 CLIENT_URL="$2"
                 shift 2
+                ;;
+            --service)
+                AUTO_INSTALL_SERVICE="yes"
+                shift
                 ;;
             --help)
                 show_usage

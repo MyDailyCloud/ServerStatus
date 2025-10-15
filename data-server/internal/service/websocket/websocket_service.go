@@ -227,7 +227,7 @@ func NewWebSocketService(
 func (s *WebSocketService) HandleConnection(ctx context.Context, conn *websocket.Conn, remoteAddr, userAgent string) (*ClientInfo, error) {
 	// 检查连接限制
 	if err := s.checkConnectionLimits(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("connection limit exceeded: %w", err)
 	}
 
@@ -256,9 +256,9 @@ func (s *WebSocketService) HandleConnection(ctx context.Context, conn *websocket
 
 	// 设置连接参数
 	conn.SetReadLimit(s.config.MaxMessageSize)
-	conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
+	_ = conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
+		_ = conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
 		client.LastSeen = time.Now()
 		return nil
 	})
@@ -270,7 +270,7 @@ func (s *WebSocketService) HandleConnection(ctx context.Context, conn *websocket
 
 	// 如果需要认证，发送认证请求
 	if s.config.RequireAuth {
-		s.sendMessage(client, &WebSocketMessage{
+		_ = s.sendMessage(client, &WebSocketMessage{
 			Type:      MessageTypeAuth,
 			Timestamp: time.Now(),
 			Data:      map[string]string{"message": "authentication required"},
@@ -289,7 +289,7 @@ func (s *WebSocketService) readPump(ctx context.Context, client *ClientInfo) {
 	defer conn.Close()
 
 	// 设置读取超时
-	conn.SetReadDeadline(time.Now().Add(s.config.AuthTimeout))
+	_ = conn.SetReadDeadline(time.Now().Add(s.config.AuthTimeout))
 	authTimer := time.NewTimer(s.config.AuthTimeout)
 
 	for {
@@ -321,7 +321,7 @@ func (s *WebSocketService) readPump(ctx context.Context, client *ClientInfo) {
 			// 停止认证计时器
 			if authTimer.Stop() {
 				// 设置正常的读取超时
-				conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
+				_ = conn.SetReadDeadline(time.Now().Add(s.config.PongWait))
 			}
 		}
 
@@ -413,7 +413,7 @@ func (s *WebSocketService) handleAuthMessage(client *ClientInfo, message WebSock
 		s.updateProjectConnections(result.ProjectKey, 1)
 
 		// 发送认证成功响应
-		s.sendMessage(client, &WebSocketMessage{
+		_ = s.sendMessage(client, &WebSocketMessage{
 			Type:      MessageTypeAuth,
 			Timestamp: time.Now(),
 			Data: AuthResponse{
@@ -429,7 +429,7 @@ func (s *WebSocketService) handleAuthMessage(client *ClientInfo, message WebSock
 			"project_key": result.ProjectKey,
 		}).Info("Client authenticated")
 	} else {
-		s.sendMessage(client, &WebSocketMessage{
+		_ = s.sendMessage(client, &WebSocketMessage{
 			Type:      MessageTypeAuth,
 			Timestamp: time.Now(),
 			Data: AuthResponse{
@@ -477,7 +477,7 @@ func (s *WebSocketService) handleSubscribeMessage(client *ClientInfo, message We
 	s.subsMutex.Unlock()
 
 	// 发送订阅成功响应
-	s.sendMessage(client, &WebSocketMessage{
+	_ = s.sendMessage(client, &WebSocketMessage{
 		Type:      MessageTypeSystem,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
@@ -516,7 +516,7 @@ func (s *WebSocketService) handleUnsubscribeMessage(client *ClientInfo, message 
 	s.subsMutex.Unlock()
 
 	// 发送取消订阅成功响应
-	s.sendMessage(client, &WebSocketMessage{
+	_ = s.sendMessage(client, &WebSocketMessage{
 		Type:      MessageTypeSystem,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
@@ -531,7 +531,7 @@ func (s *WebSocketService) handleHeartbeatMessage(client *ClientInfo, message We
 	client.LastSeen = time.Now()
 
 	// 发送心跳响应
-	s.sendMessage(client, &WebSocketMessage{
+	_ = s.sendMessage(client, &WebSocketMessage{
 		Type:      MessageTypeHeartbeat,
 		Timestamp: time.Now(),
 		Data:      map[string]string{"status": "ok"},
@@ -618,7 +618,7 @@ func (s *WebSocketService) sendMessage(client *ClientInfo, message *WebSocketMes
 	}
 
 	// 设置写入超时
-	conn.SetWriteDeadline(time.Now().Add(s.config.WriteTimeout))
+	_ = conn.SetWriteDeadline(time.Now().Add(s.config.WriteTimeout))
 
 	// 序列化消息
 	data, err := json.Marshal(message)
@@ -644,7 +644,7 @@ func (s *WebSocketService) sendError(client *ClientInfo, errorMsg string) {
 		Timestamp: time.Now(),
 		Data:      map[string]string{"error": errorMsg},
 	}
-	s.sendMessage(client, message)
+	_ = s.sendMessage(client, message)
 }
 
 // registerClient 注册客户端
@@ -800,7 +800,7 @@ func (s *WebSocketService) cleanupDisconnectedClients() {
 		// 检查连接是否活跃
 		if time.Since(client.LastSeen) > s.config.PongWait*2 {
 			s.logger.WithField("client_id", clientID).Warn("Cleaning up inactive client")
-			client.Conn.Close()
+			_ = client.Conn.Close()
 			delete(s.clients, clientID)
 
 			// 更新统计
@@ -860,7 +860,7 @@ func (s *WebSocketService) Shutdown(ctx context.Context) error {
 	// 关闭所有连接
 	s.clientsMutex.Lock()
 	for _, client := range s.clients {
-		client.Conn.Close()
+		_ = client.Conn.Close()
 	}
 	s.clientsMutex.Unlock()
 

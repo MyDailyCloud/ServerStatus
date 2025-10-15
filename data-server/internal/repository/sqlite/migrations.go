@@ -261,13 +261,13 @@ func InitializeDatabase(ctx context.Context, dbPath string, logger logger.Logger
 
 	// 测试连接
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// 启用外键约束
 	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
@@ -279,7 +279,7 @@ func InitializeDatabase(ctx context.Context, dbPath string, logger logger.Logger
 	// 运行迁移
 	migrator := NewMigrator(db, logger)
 	if err := migrator.RunMigrations(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
