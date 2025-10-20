@@ -38,15 +38,15 @@ func (r *SQLiteHistoryRepository) SaveHistoryData(ctx context.Context, data *mod
 		data.SessionID,
 		data.Hostname,
 		data.ProjectKey,
-		data.CPUUsage,
-		data.MemoryUsed,
-		data.MemoryAvailable,
-		data.DiskUsed,
-		data.DiskAvailable,
-		data.NetworkRx,
-		data.NetworkTx,
-		data.LoadAvg,
-		data.ProcessCount,
+		data.GetCPUUsage(),
+		data.GetMemoryUsed(),
+		data.GetMemoryAvailable(),
+		data.GetDiskUsed(),
+		data.GetDiskAvailable(),
+		data.GetNetworkRx(),
+		data.GetNetworkTx(),
+		0.0,
+		0,
 		data.Timestamp,
 	)
 
@@ -293,4 +293,9 @@ func (r *SQLiteHistoryRepository) GetAggregatedData(ctx context.Context, hostnam
 	}
 
 	return aggregatedData, nil
+}
+
+// Ping 检查数据库连接
+func (r *SQLiteHistoryRepository) Ping() error {
+	return r.db.Ping()
 }

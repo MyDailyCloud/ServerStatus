@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kanshan/ServerStatus/data-server/internal/models"
+	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 )
 
@@ -60,6 +61,11 @@ func (m *MockServerRepository) UpdateLastSeen(ctx context.Context, sessionID str
 
 func (m *MockServerRepository) GetOnlineServers(ctx context.Context, projectKey string, timeout time.Duration) ([]*models.ServerInfo, error) {
 	args := m.Called(ctx, projectKey, timeout)
+	return args.Get(0).([]*models.ServerInfo), args.Error(1)
+}
+
+func (m *MockServerRepository) GetServersByProject(ctx context.Context, projectKey string, page *repository.Pagination) ([]*models.ServerInfo, error) {
+	args := m.Called(ctx, projectKey, page)
 	return args.Get(0).([]*models.ServerInfo), args.Error(1)
 }
 

@@ -26,6 +26,7 @@ type ServerRepository interface {
 	// 查询操作
 	GetAllServers(ctx context.Context, projectKey string, offset, limit int) ([]*models.ServerInfo, error)
 	GetServersByHostname(ctx context.Context, hostname string) ([]*models.ServerInfo, error)
+	GetServersByProject(ctx context.Context, projectKey string, pagination *Pagination) ([]*models.ServerInfo, error)
 	GetServerCount(ctx context.Context, projectKey string) (int, error)
 
 	// 状态操作
@@ -50,6 +51,9 @@ type HistoryRepository interface {
 
 	// 聚合数据
 	GetAggregatedData(ctx context.Context, hostname, projectKey string, interval time.Duration, limit int) ([]*models.HistoryData, error)
+
+	// 健康检查
+	Ping() error
 }
 
 // CacheRepository 缓存访问接口
@@ -108,4 +112,34 @@ type RepositoryFactory interface {
 type HealthChecker interface {
 	CheckHealth(ctx context.Context) error
 	GetMetrics(ctx context.Context) (map[string]interface{}, error)
+}
+
+type ServerFilter struct {
+	ProjectKey     string
+	Hostname       string
+	OS             string
+	Status         string
+	Tags           []string
+	LastSeenAfter  *time.Time
+	LastSeenBefore *time.Time
+	Page           int
+	PageSize       int
+	Limit          int
+}
+
+type Pagination struct {
+	Page     int
+	PageSize int
+	Offset   int
+	Limit    int
+}
+
+type ProjectStats struct {
+	TotalServers   int
+	OnlineServers  int
+	OfflineServers int
+	AvgCPUUsage    float64
+	AvgMemoryUsage float64
+	AvgDiskUsage   float64
+	LastUpdateTime time.Time
 }

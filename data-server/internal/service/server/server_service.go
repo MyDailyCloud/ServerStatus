@@ -47,15 +47,14 @@ func (s *ServerService) RegisterServer(ctx context.Context, info *models.SystemI
 		SessionID:   info.SessionID,
 		Hostname:    info.Hostname,
 		ProjectKey:  info.ProjectKey,
-		OS:          info.OS,
-		Arch:        info.Arch,
-		CPUCores:    info.CPUInfo.Cores,
-		MemoryTotal: info.MemInfo.Total,
-		DiskTotal:   info.DiskInfo.Total,
-		Uptime:      info.Uptime,
-		BootTime:    info.BootTime,
-		SystemInfo:  info,
-		IsOnline:    true,
+		OS:          info.OS.Platform,
+		Arch:        info.OS.Arch,
+		CPUCores:    info.CPU.CoreCount,
+		MemoryTotal: info.Memory.Total,
+		DiskTotal:   info.Disk.Total,
+		Uptime:      0,
+		BootTime:    time.Now(),
+		Latest:      info,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -77,7 +76,7 @@ func (s *ServerService) RegisterServer(ctx context.Context, info *models.SystemI
 	s.logger.WithFields(map[string]interface{}{
 		"session_id": info.SessionID,
 		"hostname":   info.Hostname,
-		"os":         info.OS,
+		"os":         info.OS.Platform,
 	}).Info("Server registered successfully")
 
 	return nil
@@ -97,9 +96,8 @@ func (s *ServerService) UpdateServerStatus(ctx context.Context, info *models.Sys
 	}
 
 	// 更新状态信息
-	serverInfo.SystemInfo = info
+	serverInfo.Latest = info
 	serverInfo.UpdatedAt = time.Now()
-	serverInfo.IsOnline = true
 
 	// 更新数据库
 	if err := s.serverRepo.UpdateServer(ctx, serverInfo); err != nil {
@@ -268,7 +266,6 @@ func (s *ServerService) MarkServerAsOffline(ctx context.Context, timeout time.Du
 	for _, server := range servers {
 		// 检查最后更新时间
 		if time.Since(server.UpdatedAt) > timeout {
-			server.IsOnline = false
 			// 更新状态
 			if err := s.serverRepo.UpdateServer(ctx, server); err != nil {
 				s.logger.WithError(err).WithField("session_id", server.SessionID).Warn("Failed to mark server as offline")
@@ -304,24 +301,7 @@ func (s *ServerService) validateSystemInfo(info *models.SystemInfo) error {
 
 // saveHistoryData 保存历史数据
 func (s *ServerService) saveHistoryData(ctx context.Context, info *models.SystemInfo) error {
-	historyData := &models.HistoryData{
-		SessionID:   info.SessionID,
-		Hostname:    info.Hostname,
-		ProjectKey:  info.ProjectKey,
-		CPUUsage:    info.CPUUsage,
-		MemoryUsed:  info.MemInfo.Used,
-		MemoryUsage: info.MemInfo.UsagePercent,
-		DiskUsed:    info.DiskInfo.Used,
-		DiskUsage:   info.DiskInfo.UsagePercent,
-		NetworkTx:   info.NetInfo.Tx,
-		NetworkRx:   info.NetInfo.Rx,
-		GPUUsage:    info.GPUInfo.Usage,
-		LoadAvg:     info.LoadAvg,
-		Temperature: info.TempInfo.Temp,
-		Timestamp:   info.Timestamp,
-	}
-
-	return s.historyRepo.SaveHistoryData(ctx, historyData)
+	return s.historyRepo.SaveHistoryData(ctx, info)
 }
 
 // cacheServerInfo 缓存服务器信息
@@ -346,13 +326,14 @@ func (s *ServerService) applyFilters(servers []*models.ServerInfo, filter *repos
 	for _, server := range servers {
 		// 状态过滤
 		if filter.Status != "" {
+			isOnline := time.Since(server.UpdatedAt) < s.offlineTimeout
 			switch filter.Status {
 			case "online":
-				if !server.IsOnline {
+				if !isOnline {
 					continue
 				}
 			case "offline":
-				if server.IsOnline {
+				if isOnline {
 					continue
 				}
 			}
@@ -397,10 +378,10 @@ func (s *ServerService) calculateAverageUsage(servers []*models.ServerInfo) (avg
 	var totalCPU, totalMem, totalDisk float64
 
 	for _, server := range servers {
-		if server.SystemInfo != nil {
-			totalCPU += server.SystemInfo.CPUUsage
-			totalMem += server.SystemInfo.MemInfo.UsagePercent
-			totalDisk += server.SystemInfo.DiskInfo.UsagePercent
+		if server.Latest != nil {
+			totalCPU += server.Latest.GetCPUUsage()
+			totalMem += server.Latest.Memory.UsagePercent
+			totalDisk += server.Latest.Disk.UsagePercent
 		}
 	}
 

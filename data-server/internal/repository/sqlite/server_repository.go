@@ -102,7 +102,7 @@ func (r *SQLiteServerRepository) GetServer(ctx context.Context, sessionID string
 	if err != nil {
 		r.logger.WithError(err).WithField("session_id", sessionID).Warn("Failed to get latest server status")
 	} else {
-		server.SystemInfo = status
+		server.Latest = status
 	}
 
 	return server, nil
@@ -212,7 +212,7 @@ func (r *SQLiteServerRepository) GetAllServers(ctx context.Context, projectKey s
 		if err != nil {
 			r.logger.WithError(err).WithField("session_id", server.SessionID).Warn("Failed to get latest server status")
 		} else {
-			server.SystemInfo = status
+			server.Latest = status
 		}
 
 		servers = append(servers, server)
@@ -276,7 +276,7 @@ func (r *SQLiteServerRepository) GetServersByHostname(ctx context.Context, hostn
 		if err != nil {
 			r.logger.WithError(err).WithField("session_id", server.SessionID).Warn("Failed to get latest server status")
 		} else {
-			server.SystemInfo = status
+			server.Latest = status
 		}
 
 		servers = append(servers, server)
@@ -288,6 +288,21 @@ func (r *SQLiteServerRepository) GetServersByHostname(ctx context.Context, hostn
 	}
 
 	return servers, nil
+}
+
+// GetServersByProject 根据项目获取服务器
+func (r *SQLiteServerRepository) GetServersByProject(ctx context.Context, projectKey string, pagination *repository.Pagination) ([]*models.ServerInfo, error) {
+	offset := 0
+	limit := 100
+	if pagination != nil {
+		offset = pagination.Offset
+		limit = pagination.Limit
+		if limit <= 0 {
+			limit = 100
+		}
+	}
+
+	return r.GetAllServers(ctx, projectKey, offset, limit)
 }
 
 // GetServerCount 获取服务器数量
@@ -367,14 +382,13 @@ func (r *SQLiteServerRepository) GetOnlineServers(ctx context.Context, projectKe
 
 		server.CreatedAt = createdAt
 		server.UpdatedAt = updatedAt
-		server.IsOnline = true
 
 		// 获取最新状态信息
 		status, err := r.getLatestServerStatus(ctx, server.SessionID)
 		if err != nil {
 			r.logger.WithError(err).WithField("session_id", server.SessionID).Warn("Failed to get latest server status")
 		} else {
-			server.SystemInfo = status
+			server.Latest = status
 		}
 
 		servers = append(servers, server)
@@ -409,19 +423,23 @@ func (r *SQLiteServerRepository) getLatestServerStatus(ctx context.Context, sess
 		LIMIT 1
 	`
 
-	status := &models.SystemInfo{}
+	var cpuUsage float64
+	var memoryUsed, memoryAvailable, diskUsed, diskAvailable uint64
+	var networkRx, networkTx uint64
+	var loadAvg float64
+	var processCount int
 	var timestamp time.Time
 
 	err := r.db.QueryRowContext(ctx, query, sessionID).Scan(
-		&status.CPUUsage,
-		&status.MemoryUsed,
-		&status.MemoryAvailable,
-		&status.DiskUsed,
-		&status.DiskAvailable,
-		&status.NetworkRx,
-		&status.NetworkTx,
-		&status.LoadAvg,
-		&status.ProcessCount,
+		&cpuUsage,
+		&memoryUsed,
+		&memoryAvailable,
+		&diskUsed,
+		&diskAvailable,
+		&networkRx,
+		&networkTx,
+		&loadAvg,
+		&processCount,
 		&timestamp,
 	)
 
@@ -432,6 +450,24 @@ func (r *SQLiteServerRepository) getLatestServerStatus(ctx context.Context, sess
 		return nil, fmt.Errorf("failed to get latest server status: %w", err)
 	}
 
-	status.Timestamp = timestamp
+	status := &models.SystemInfo{
+		Timestamp: timestamp,
+		CPU: models.CPUInfo{
+			UsagePercent: cpuUsage,
+		},
+		Memory: models.MemInfo{
+			Used: memoryUsed,
+			Free: memoryAvailable,
+		},
+		Disk: models.DiskInfo{
+			Used: diskUsed,
+			Free: diskAvailable,
+		},
+		Network: models.NetInfo{
+			BytesRecv: networkRx,
+			BytesSent: networkTx,
+		},
+	}
+
 	return status, nil
 }

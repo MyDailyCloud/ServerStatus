@@ -441,3 +441,10 @@ func RoundFloat64(value float64, precision int) float64 {
 	factor := math.Pow(10, float64(precision))
 	return math.Round(value*factor) / factor
 }
+
+func SplitString(s, sep string) []string {
+	if s == "" {
+		return []string{}
+	}
+	return strings.Split(s, sep)
+}

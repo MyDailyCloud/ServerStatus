@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 )
 
@@ -126,20 +125,36 @@ type MockLogger struct {
 	mock.Mock
 }
 
-func (m *MockLogger) Debug(msg string) {
-	m.Called(msg)
+func (m *MockLogger) Debug(args ...interface{}) {
+	m.Called(args)
 }
 
-func (m *MockLogger) Info(msg string) {
-	m.Called(msg)
+func (m *MockLogger) Info(args ...interface{}) {
+	m.Called(args)
 }
 
-func (m *MockLogger) Warn(msg string) {
-	m.Called(msg)
+func (m *MockLogger) Warn(args ...interface{}) {
+	m.Called(args)
 }
 
-func (m *MockLogger) Error(msg string) {
-	m.Called(msg)
+func (m *MockLogger) Error(args ...interface{}) {
+	m.Called(args)
+}
+
+func (m *MockLogger) Fatal(args ...interface{}) {
+	m.Called(args)
+}
+
+func (m *MockLogger) Fatalf(format string, args ...interface{}) {
+	m.Called(format, args)
+}
+
+func (m *MockLogger) Panic(args ...interface{}) {
+	m.Called(args)
+}
+
+func (m *MockLogger) Panicf(format string, args ...interface{}) {
+	m.Called(format, args)
 }
 
 func (m *MockLogger) Debugf(format string, args ...interface{}) {

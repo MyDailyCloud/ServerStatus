@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/kanshan/ServerStatus/data-server/internal/config"
+	"github.com/kanshan/ServerStatus/data-server/internal/models"
 	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 	_ "github.com/mattn/go-sqlite3"
@@ -36,7 +38,7 @@ func NewSQLiteRepositoryFactory(cfg *config.DatabaseConfig, logger logger.Logger
 }
 
 // NewRepository 创建完整的仓库实例
-func (f *SQLiteRepositoryFactory) NewRepository() (repository.Repository, error) {
+func (f *SQLiteRepositoryFactory) NewRepository(config interface{}) (repository.Repository, error) {
 	return &SQLiteRepository{
 		db:                  f.db,
 		logger:              f.logger,
@@ -45,6 +47,10 @@ func (f *SQLiteRepositoryFactory) NewRepository() (repository.Repository, error)
 		cacheRepository:     NewSQLiteCacheRepository(f.db, f.logger),
 		accessKeyRepository: NewSQLiteAccessKeyRepository(f.db, f.logger),
 	}, nil
+}
+
+func (f *SQLiteRepositoryFactory) SupportedTypes() []string {
+	return []string{"sqlite", "sqlite3"}
 }
 
 // Close 关闭工厂和数据库连接
@@ -83,6 +89,146 @@ func (r *SQLiteRepository) CacheRepository() repository.CacheRepository {
 // AccessKeyRepository 返回访问密钥仓库
 func (r *SQLiteRepository) AccessKeyRepository() repository.AccessKeyRepository {
 	return r.accessKeyRepository
+}
+
+func (r *SQLiteRepository) CleanupExpiredKeys(ctx context.Context, ttl time.Duration) error {
+	return r.accessKeyRepository.CleanupExpiredKeys(ctx, ttl)
+}
+
+func (r *SQLiteRepository) CleanupOldData(ctx context.Context, before time.Time) error {
+	return r.historyRepository.CleanupOldData(ctx, before)
+}
+
+// Delegate CacheRepository methods
+func (r *SQLiteRepository) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	return r.cacheRepository.Set(ctx, key, value, ttl)
+}
+
+func (r *SQLiteRepository) Get(ctx context.Context, key string, dest interface{}) error {
+	return r.cacheRepository.Get(ctx, key, dest)
+}
+
+func (r *SQLiteRepository) Delete(ctx context.Context, key string) error {
+	return r.cacheRepository.Delete(ctx, key)
+}
+
+func (r *SQLiteRepository) Exists(ctx context.Context, key string) (bool, error) {
+	return r.cacheRepository.Exists(ctx, key)
+}
+
+func (r *SQLiteRepository) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error {
+	return r.cacheRepository.SetMultiple(ctx, items, ttl)
+}
+
+func (r *SQLiteRepository) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) {
+	return r.cacheRepository.GetMultiple(ctx, keys)
+}
+
+func (r *SQLiteRepository) DeleteMultiple(ctx context.Context, keys []string) error {
+	return r.cacheRepository.DeleteMultiple(ctx, keys)
+}
+
+func (r *SQLiteRepository) ClearPattern(ctx context.Context, pattern string) error {
+	return r.cacheRepository.ClearPattern(ctx, pattern)
+}
+
+func (r *SQLiteRepository) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return r.cacheRepository.Keys(ctx, pattern)
+}
+
+func (r *SQLiteRepository) IsConnected() bool {
+	return r.cacheRepository.IsConnected()
+}
+
+func (r *SQLiteRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
+	return r.cacheRepository.GetStats(ctx)
+}
+
+func (r *SQLiteRepository) GetType() string {
+	return r.cacheRepository.GetType()
+}
+
+// Delegate ServerRepository methods
+func (r *SQLiteRepository) CreateServer(ctx context.Context, server *models.ServerInfo) error {
+	return r.serverRepository.CreateServer(ctx, server)
+}
+
+func (r *SQLiteRepository) GetServer(ctx context.Context, sessionID string) (*models.ServerInfo, error) {
+	return r.serverRepository.GetServer(ctx, sessionID)
+}
+
+func (r *SQLiteRepository) UpdateServer(ctx context.Context, server *models.ServerInfo) error {
+	return r.serverRepository.UpdateServer(ctx, server)
+}
+
+func (r *SQLiteRepository) DeleteServer(ctx context.Context, sessionID string) error {
+	return r.serverRepository.DeleteServer(ctx, sessionID)
+}
+
+func (r *SQLiteRepository) GetAllServers(ctx context.Context, projectKey string, offset, limit int) ([]*models.ServerInfo, error) {
+	return r.serverRepository.GetAllServers(ctx, projectKey, offset, limit)
+}
+
+func (r *SQLiteRepository) GetServersByHostname(ctx context.Context, hostname string) ([]*models.ServerInfo, error) {
+	return r.serverRepository.GetServersByHostname(ctx, hostname)
+}
+
+func (r *SQLiteRepository) GetServersByProject(ctx context.Context, projectKey string, pagination *repository.Pagination) ([]*models.ServerInfo, error) {
+	return r.serverRepository.GetServersByProject(ctx, projectKey, pagination)
+}
+
+func (r *SQLiteRepository) GetServerCount(ctx context.Context, projectKey string) (int, error) {
+	return r.serverRepository.GetServerCount(ctx, projectKey)
+}
+
+func (r *SQLiteRepository) UpdateLastSeen(ctx context.Context, sessionID string) error {
+	return r.serverRepository.UpdateLastSeen(ctx, sessionID)
+}
+
+func (r *SQLiteRepository) GetOnlineServers(ctx context.Context, projectKey string, timeout time.Duration) ([]*models.ServerInfo, error) {
+	return r.serverRepository.GetOnlineServers(ctx, projectKey, timeout)
+}
+
+// Delegate HistoryRepository methods
+func (r *SQLiteRepository) SaveHistoryData(ctx context.Context, data *models.SystemInfo) error {
+	return r.historyRepository.SaveHistoryData(ctx, data)
+}
+
+func (r *SQLiteRepository) GetHostHistory(ctx context.Context, hostname, projectKey string, limit int) ([]*models.HistoryData, error) {
+	return r.historyRepository.GetHostHistory(ctx, hostname, projectKey, limit)
+}
+
+func (r *SQLiteRepository) GetHistoryByTimeRange(ctx context.Context, hostname, projectKey string, start, end time.Time) ([]*models.HistoryData, error) {
+	return r.historyRepository.GetHistoryByTimeRange(ctx, hostname, projectKey, start, end)
+}
+
+func (r *SQLiteRepository) GetHistoryCount(ctx context.Context, hostname, projectKey string) (int, error) {
+	return r.historyRepository.GetHistoryCount(ctx, hostname, projectKey)
+}
+
+func (r *SQLiteRepository) GetAggregatedData(ctx context.Context, hostname, projectKey string, interval time.Duration, limit int) ([]*models.HistoryData, error) {
+	return r.historyRepository.GetAggregatedData(ctx, hostname, projectKey, interval, limit)
+}
+
+// Delegate AccessKeyRepository methods
+func (r *SQLiteRepository) SaveAccessKey(ctx context.Context, cacheKey, accessKey string) error {
+	return r.accessKeyRepository.SaveAccessKey(ctx, cacheKey, accessKey)
+}
+
+func (r *SQLiteRepository) GetAccessKey(ctx context.Context, accessKey string) (string, error) {
+	return r.accessKeyRepository.GetAccessKey(ctx, accessKey)
+}
+
+func (r *SQLiteRepository) DeleteAccessKey(ctx context.Context, accessKey string) error {
+	return r.accessKeyRepository.DeleteAccessKey(ctx, accessKey)
+}
+
+func (r *SQLiteRepository) GenerateAccessKey(ctx context.Context, serverKey, projectKey string) (string, error) {
+	return r.accessKeyRepository.GenerateAccessKey(ctx, serverKey, projectKey)
+}
+
+func (r *SQLiteRepository) ValidateAccessKey(ctx context.Context, accessKey string) (string, error) {
+	return r.accessKeyRepository.ValidateAccessKey(ctx, accessKey)
 }
 
 // Ping 检查数据库连接

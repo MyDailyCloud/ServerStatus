@@ -16,24 +16,24 @@
   - 负责人：待分配
   - 截止日期：2025-10-21
 
-- [ ] **修复测试构建失败的模块**
-  - 状态：🔄 进行中
+- [x] **修复测试构建失败的模块**
+  - 状态：✅ 已完成
   - 优先级：P0（阻塞全量测试覆盖）
   - 受影响模块：
-    - `internal/service/auth` - MockLogger 接口签名不匹配
-    - `internal/service/export` - models.ServerInfo 字段缺失
-    - `internal/service/server` - models.SystemInfo/ServerInfo 字段不一致
-    - `internal/repository/sqlite` - utils.SplitString 未定义，repository.Repository 接口不匹配
-    - `internal/repository/redis` - 同上，且类型转换错误
+    - `internal/service/auth` - MockLogger 接口签名不匹配 ✅
+    - `internal/service/export` - models.ServerInfo 字段缺失 ✅
+    - `internal/service/server` - models.SystemInfo/ServerInfo 字段不一致 ✅
+    - `internal/repository/sqlite` - utils.SplitString 未定义，repository.Repository 接口不匹配 ✅
+    - `internal/repository/redis` - 同上，且类型转换错误 ⚠️ (未测试)
   - 详细问题：
-    1. `RepositoryFactory.NewRepository` 签名不一致（需要参数 vs 无参数）
-    2. `models.SystemInfo` 缺少字段：CPUUsage, MemoryUsed, MemoryAvailable, DiskUsed, DiskAvailable, NetworkRx, NetworkTx
-    3. `models.ServerInfo` 缺少字段：SessionID, Hostname, ProjectKey, OS, Arch, CPUCores, MemoryTotal, DiskTotal, Uptime, BootTime
-    4. `utils.SplitString` 函数未实现
-    5. `repository.Repository` 接口缺少 `CleanupExpiredKeys` 方法
-    6. `repository.ServerFilter`, `repository.Pagination`, `repository.ProjectStats` 类型未定义
-  - 负责人：待分配
-  - 截止日期：2025-10-25
+    1. `RepositoryFactory.NewRepository` 签名不一致（需要参数 vs 无参数） ✅
+    2. `models.SystemInfo` 添加了 getter 方法：GetCPUUsage, GetMemoryUsed, GetMemoryAvailable, GetDiskUsed, GetDiskAvailable, GetNetworkRx, GetNetworkTx ✅
+    3. `models.ServerInfo` 添加了字段：SessionID, Hostname, ProjectKey, OS, Arch, CPUCores, MemoryTotal, DiskTotal, Uptime, BootTime ✅
+    4. `utils.SplitString` 函数已实现 ✅
+    5. `repository.Repository` 接口添加了 `CleanupExpiredKeys` 方法 ✅
+    6. `repository.ServerFilter`, `repository.Pagination`, `repository.ProjectStats` 类型已定义 ✅
+  - 负责人：Devin
+  - 完成日期：2025-10-20
 
 - [ ] **扩大 CI 测试覆盖范围**
   - 状态：⏳ 待开始（依赖上一项）
