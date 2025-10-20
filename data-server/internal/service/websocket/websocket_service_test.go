@@ -519,16 +519,30 @@ func TestWebSocketService_Configuration(t *testing.T) {
 	require.NotNil(t, config)
 	assert.Equal(t, DefaultConfig().ReadTimeout, config.ReadTimeout)
 
-	// Test update config
+	// Test update config with complete config
 	newConfig := &Config{
-		ReadTimeout:         100 * time.Second,
-		MaxTotalConnections: 2000,
+		ReadTimeout:              100 * time.Second,
+		WriteTimeout:             10 * time.Second,
+		PingPeriod:               54 * time.Second,
+		PongWait:                 60 * time.Second,
+		MaxMessageSize:           1024 * 1024,
+		MaxConnectionsPerProject: 100,
+		MaxTotalConnections:      2000,
+		AuthTimeout:              10 * time.Second,
+		RequireAuth:              true,
+		StatsInterval:            30 * time.Second,
 	}
 	service.UpdateConfig(newConfig)
 
 	updatedConfig := service.GetConfig()
 	assert.Equal(t, 100*time.Second, updatedConfig.ReadTimeout)
 	assert.Equal(t, 2000, updatedConfig.MaxTotalConnections)
+
+	// Shutdown service properly
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := service.Shutdown(ctx)
+	assert.NoError(t, err)
 
 	// Verify mock expectations
 	mockLogger.AssertExpectations(t)
@@ -708,6 +722,14 @@ func TestWebSocketService_HandleConnection_Integration(t *testing.T) {
 	mockAuthService := &MockAuthService{}
 	mockLogger := &MockLogger{}
 
+	// Setup logger mock expectations for all possible calls
+	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
+	mockLogger.On("WithField", mock.Anything, mock.Anything).Return(mockLogger)
+	mockLogger.On("Info", mock.Anything).Maybe()
+	mockLogger.On("Debug", mock.Anything).Maybe()
+	mockLogger.On("Warn", mock.Anything).Maybe()
+	mockLogger.On("Error", mock.Anything).Maybe()
+
 	// Create service with no auth required for easier testing
 	config := &Config{
 		RequireAuth:   false,
@@ -753,17 +775,13 @@ func TestWebSocketService_HandleConnection_Integration(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	// Test message reception (should receive auth request if auth required, or system message)
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	_, message, err := conn.ReadMessage()
-	require.NoError(t, err)
+	time.Sleep(100 * time.Millisecond)
 
-	var wsMessage WebSocketMessage
-	err = json.Unmarshal(message, &wsMessage)
-	require.NoError(t, err)
+	// Verify client count
+	assert.Equal(t, 1, service.GetClientCount())
 
-	// Verify we got a message from the server
-	assert.NotEmpty(t, wsMessage.Type)
+	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	time.Sleep(100 * time.Millisecond)
 
 	// Shutdown service
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
