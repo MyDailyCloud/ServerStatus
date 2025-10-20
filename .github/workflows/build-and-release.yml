@@ -42,6 +42,37 @@ jobs:
           exit 1
         fi
 
+    - name: Run unit tests with coverage
+      run: |
+        cd data-server
+        go test ./internal/config ./internal/service/health ./internal/service/websocket -v -coverprofile=coverage.out -covermode=atomic
+        
+    - name: Display coverage report
+      run: |
+        cd data-server
+        echo "=== Coverage Summary ==="
+        go tool cover -func=coverage.out | tail -1
+        
+    - name: Check coverage threshold
+      run: |
+        cd data-server
+        COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | sed 's/%//')
+        echo "Total coverage: ${COVERAGE}%"
+        THRESHOLD=50
+        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+          echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+          exit 1
+        else
+          echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+        fi
+        
+    - name: Upload coverage to artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: data-server/coverage.out
+        retention-days: 30
+
   build:
     needs: test
     runs-on: ubuntu-latest
