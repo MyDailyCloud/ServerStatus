@@ -111,6 +111,35 @@ func TestYAMLLoader(t *testing.T) {
 	}
 }
 
+func TestJSONLoader(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "test_config.json")
+
+	config := DefaultConfig()
+	config.Server.Host = "test-host"
+	config.Server.Port = "9090"
+
+	loader := NewJSONLoader([]string{tempDir})
+
+	err := loader.SaveToFile(config, configPath)
+	if err != nil {
+		t.Fatalf("SaveToFile() error = %v", err)
+	}
+
+	loadedConfig, err := loader.LoadFromFile(configPath)
+	if err != nil {
+		t.Fatalf("LoadFromFile() error = %v", err)
+	}
+
+	if loadedConfig.Server.Host != config.Server.Host {
+		t.Errorf("Expected host %s, got %s", config.Server.Host, loadedConfig.Server.Host)
+	}
+
+	if loadedConfig.Server.Port != config.Server.Port {
+		t.Errorf("Expected port %s, got %s", config.Server.Port, loadedConfig.Server.Port)
+	}
+}
+
 func TestConfigManager(t *testing.T) {
 	// 创建临时配置文件
 	tempDir := t.TempDir()
