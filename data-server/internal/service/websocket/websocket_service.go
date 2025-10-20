@@ -187,6 +187,35 @@ func NewWebSocketService(
 ) *WebSocketService {
 	if config == nil {
 		config = DefaultConfig()
+	} else {
+		defaultConfig := DefaultConfig()
+		if config.ReadTimeout == 0 {
+			config.ReadTimeout = defaultConfig.ReadTimeout
+		}
+		if config.WriteTimeout == 0 {
+			config.WriteTimeout = defaultConfig.WriteTimeout
+		}
+		if config.PingPeriod == 0 {
+			config.PingPeriod = defaultConfig.PingPeriod
+		}
+		if config.PongWait == 0 {
+			config.PongWait = defaultConfig.PongWait
+		}
+		if config.MaxMessageSize == 0 {
+			config.MaxMessageSize = defaultConfig.MaxMessageSize
+		}
+		if config.MaxConnectionsPerProject == 0 {
+			config.MaxConnectionsPerProject = defaultConfig.MaxConnectionsPerProject
+		}
+		if config.MaxTotalConnections == 0 {
+			config.MaxTotalConnections = defaultConfig.MaxTotalConnections
+		}
+		if config.AuthTimeout == 0 {
+			config.AuthTimeout = defaultConfig.AuthTimeout
+		}
+		if config.StatsInterval == 0 {
+			config.StatsInterval = defaultConfig.StatsInterval
+		}
 	}
 
 	service := &WebSocketService{
