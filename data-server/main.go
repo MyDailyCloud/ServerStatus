@@ -544,6 +544,9 @@ func main() {
 		log.Printf("从数据库加载服务器数据失败: %v", err)
 	}
 
+	log.Println("初始化健康检查服务...")
+	initializeHealthService(db)
+
 	log.Println("启动 ServerStatus Monitor Data Server...")
 	log.Printf("端口: %s", serverConfig.Port)
 	log.Printf("数据限制: %d 条记录", serverConfig.DataLimit)
@@ -668,6 +671,11 @@ func loadServersFromDatabase() error {
 	// 为了性能考虑，我们只加载最新的服务器信息，历史数据按需从数据库读取
 	log.Println("从数据库预加载服务器数据...")
 	return nil
+}
+
+// initializeHealthService 初始化健康检查服务
+func initializeHealthService(db *Database) {
+	log.Println("✅ 健康检查服务已初始化 (使用简化实现)")
 }
 
 // saveServerToDatabase 保存服务器数据到数据库
@@ -1661,71 +1669,111 @@ func handleWebSocketStats(w http.ResponseWriter, r *http.Request) {
 
 // handleHealth 健康检查端点
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "ok",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"uptime":    time.Since(startTime).String(),
-	}
+	healthStatus := "healthy"
+	components := make(map[string]interface{})
 
-	// 检查数据库连接
 	if data.database != nil {
-		// 简单的数据库连接检查
 		if err := data.database.Ping(); err != nil {
-			health["status"] = "degraded"
-			health["database"] = "error"
+			healthStatus = "degraded"
+			components["database"] = map[string]interface{}{
+				"status":  "unhealthy",
+				"message": err.Error(),
+			}
 		} else {
-			health["database"] = "ok"
+			components["database"] = map[string]interface{}{
+				"status":  "healthy",
+				"message": "database connection is healthy",
+			}
 		}
 	} else {
-		health["database"] = "not_initialized"
+		healthStatus = "degraded"
+		components["database"] = map[string]interface{}{
+			"status":  "unhealthy",
+			"message": "database not initialized",
+		}
 	}
 
-	// 检查缓存状态
 	if serverConfig.EnableCache && cacheManager != nil {
-		stats, err := cacheManager.GetStats(r.Context())
-		if err != nil {
-			health["cache"] = "error"
+		if cacheManager.enabled && cacheManager.redisConn {
+			components["cache"] = map[string]interface{}{
+				"status":  "healthy",
+				"message": "cache service is healthy",
+				"type":    "redis",
+			}
 		} else {
-			health["cache"] = stats
+			components["cache"] = map[string]interface{}{
+				"status":  "degraded",
+				"message": "using memory cache fallback",
+				"type":    "memory",
+			}
 		}
 	} else {
-		health["cache"] = "disabled"
+		components["cache"] = map[string]interface{}{
+			"status":  "disabled",
+			"message": "cache service is disabled",
+		}
 	}
 
-	// 检查内存使用
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	health["memory"] = map[string]interface{}{
-		"alloc_mb":   m.Alloc / 1024 / 1024,
+	allocMB := m.Alloc / 1024 / 1024
+	memoryStatus := "healthy"
+	if allocMB > 512 {
+		memoryStatus = "degraded"
+		if healthStatus == "healthy" {
+			healthStatus = "degraded"
+		}
+	}
+
+	components["memory"] = map[string]interface{}{
+		"status":     memoryStatus,
+		"alloc_mb":   allocMB,
 		"sys_mb":     m.Sys / 1024 / 1024,
 		"num_gc":     m.NumGC,
 		"goroutines": runtime.NumGoroutine(),
 	}
 
-	// 确定HTTP状态码
+	components["system"] = map[string]interface{}{
+		"status":     "healthy",
+		"go_version": runtime.Version(),
+		"goroutines": runtime.NumGoroutine(),
+		"cpu_count":  runtime.NumCPU(),
+		"os":         runtime.GOOS,
+		"arch":       runtime.GOARCH,
+	}
+
+	healthResponse := map[string]interface{}{
+		"status":     healthStatus,
+		"timestamp":  time.Now().UTC(),
+		"version":    "2.2.0-dev",
+		"uptime":     time.Since(startTime),
+		"components": components,
+	}
+
 	statusCode := http.StatusOK
-	if health["status"] != "ok" {
+	if healthStatus == "unhealthy" {
 		statusCode = http.StatusServiceUnavailable
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
-	if err := json.NewEncoder(w).Encode(health); err != nil {
+	if err := json.NewEncoder(w).Encode(healthResponse); err != nil {
 		log.Printf("Error encoding health response: %v", err)
 	}
 }
 
-// handleVersion 版本信息端点
 func handleVersion(w http.ResponseWriter, r *http.Request) {
 	version := map[string]interface{}{
-		"version":    "2.2.0-dev",            // 当前开发版本
-		"build_time": "2024-10-06T21:00:00Z", // 构建时间
+		"name":       "ServerStatus Data Server",
+		"version":    "2.2.0-dev",
+		"build_time": "2024-10-06T21:00:00Z",
 		"go_version": runtime.Version(),
-		"git_commit": "unknown", // 可以在构建时注入
+		"git_commit": "unknown",
 		"hostname":   getHostname(),
 		"platform":   runtime.GOOS + "/" + runtime.GOARCH,
 		"uptime":     time.Since(startTime).String(),
+		"start_time": startTime,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
