@@ -19,6 +19,34 @@ type SystemInfo struct {
 	UserResources []UserResourceInfo `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
+func (s *SystemInfo) GetCPUUsage() float64 {
+	return s.CPU.UsagePercent
+}
+
+func (s *SystemInfo) GetMemoryUsed() uint64 {
+	return s.Memory.Used
+}
+
+func (s *SystemInfo) GetMemoryAvailable() uint64 {
+	return s.Memory.Free
+}
+
+func (s *SystemInfo) GetDiskUsed() uint64 {
+	return s.Disk.Used
+}
+
+func (s *SystemInfo) GetDiskAvailable() uint64 {
+	return s.Disk.Free
+}
+
+func (s *SystemInfo) GetNetworkRx() uint64 {
+	return s.Network.BytesRecv
+}
+
+func (s *SystemInfo) GetNetworkTx() uint64 {
+	return s.Network.BytesSent
+}
+
 // CPUInfo CPU信息
 type CPUInfo struct {
 	UsagePercent float64 `json:"usage_percent"`
@@ -140,29 +168,45 @@ type ServerStatus struct {
 
 // ServerInfo 服务器信息 (数据库使用)
 type ServerInfo struct {
-	Latest   *SystemInfo   `json:"latest"`
-	History  []*SystemInfo `json:"history"`
-	LastSeen time.Time     `json:"last_seen"`
+	SessionID   string        `json:"session_id"`
+	Hostname    string        `json:"hostname"`
+	ProjectKey  string        `json:"project_key"`
+	OS          string        `json:"os"`
+	Arch        string        `json:"arch"`
+	CPUCores    int           `json:"cpu_cores"`
+	MemoryTotal uint64        `json:"memory_total"`
+	DiskTotal   uint64        `json:"disk_total"`
+	Uptime      int64         `json:"uptime"`
+	BootTime    time.Time     `json:"boot_time"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+	Latest      *SystemInfo   `json:"latest"`
+	History     []*SystemInfo `json:"history"`
+	LastSeen    time.Time     `json:"last_seen"`
 }
 
 // HistoryData 历史数据
 type HistoryData struct {
-	Timestamp      time.Time `json:"timestamp"`
-	Hostname       string    `json:"hostname"`
-	SessionID      string    `json:"session_id"`
-	ProjectKey     string    `json:"project_key"`
-	CPUUsage       float64   `json:"cpu_usage"`
-	MemoryUsed     uint64    `json:"memory_used"`
-	MemoryUsage    float64   `json:"memory_usage"`
-	DiskUsed       uint64    `json:"disk_used"`
-	DiskUsage      float64   `json:"disk_usage"`
-	NetworkTx      uint64    `json:"network_tx"`
-	NetworkRx      uint64    `json:"network_rx"`
-	GPUUsage       float64   `json:"gpu_usage"`
-	GPUMemoryUsage float64   `json:"gpu_memory_usage"`
-	GPUTemperature float64   `json:"gpu_temperature"`
-	Temperature    float64   `json:"temperature"`
-	TimeBucket     string    `json:"time_bucket,omitempty"` // 用于聚合数据的时间桶
+	Timestamp       time.Time `json:"timestamp"`
+	Hostname        string    `json:"hostname"`
+	SessionID       string    `json:"session_id"`
+	ProjectKey      string    `json:"project_key"`
+	CPUUsage        float64   `json:"cpu_usage"`
+	MemoryUsed      uint64    `json:"memory_used"`
+	MemoryUsage     float64   `json:"memory_usage"`
+	MemoryAvailable uint64    `json:"memory_available"`
+	DiskUsed        uint64    `json:"disk_used"`
+	DiskUsage       float64   `json:"disk_usage"`
+	DiskAvailable   uint64    `json:"disk_available"`
+	NetworkTx       uint64    `json:"network_tx"`
+	NetworkRx       uint64    `json:"network_rx"`
+	GPUUsage        float64   `json:"gpu_usage"`
+	GPUMemoryUsage  float64   `json:"gpu_memory_usage"`
+	GPUTemperature  float64   `json:"gpu_temperature"`
+	Temperature     float64   `json:"temperature"`
+	LoadAvg         float64   `json:"load_avg"`
+	ProcessCount    int       `json:"process_count"`
+	TimeBucket      string    `json:"time_bucket,omitempty"` // 用于聚合数据的时间桶
 }
 
 // AccessKey 访问密钥

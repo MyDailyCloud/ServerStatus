@@ -255,19 +255,28 @@ func createTestServerInfo() *models.ServerInfo {
 		BootTime:    now.Add(-time.Hour),
 		CreatedAt:   now.Add(-2 * time.Hour),
 		UpdatedAt:   now,
-		SystemInfo: &models.SystemInfo{
-			Hostname:        "test-host",
-			SessionID:       "test-session-1",
-			Timestamp:       now,
-			CPUUsage:        25.5,
-			MemoryUsed:      4294967296,  // 4GB
-			MemoryAvailable: 4294967296,  // 4GB
-			DiskUsed:        53687091200, // 50GB
-			DiskAvailable:   53687091200, // 50GB
-			NetworkRx:       1073741824,  // 1GB
-			NetworkTx:       2147483648,  // 2GB
-			LoadAvg:         1.5,
-			ProcessCount:    150,
+		Latest: &models.SystemInfo{
+			Hostname:  "test-host",
+			SessionID: "test-session-1",
+			Timestamp: now,
+			CPU: models.CPUInfo{
+				UsagePercent: 25.5,
+				CoreCount:    4,
+			},
+			Memory: models.MemInfo{
+				Used:  4294967296,
+				Free:  4294967296,
+				Total: 8589934592,
+			},
+			Disk: models.DiskInfo{
+				Used:  53687091200,
+				Free:  53687091200,
+				Total: 107374182400,
+			},
+			Network: models.NetInfo{
+				BytesRecv: 1073741824,
+				BytesSent: 2147483648,
+			},
 		},
 	}
 }
