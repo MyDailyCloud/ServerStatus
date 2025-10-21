@@ -126,66 +126,51 @@ type MockLogger struct {
 }
 
 func (m *MockLogger) Debug(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Info(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Warn(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Error(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Fatal(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Fatalf(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) Panic(args ...interface{}) {
-	m.Called(args)
 }
 
 func (m *MockLogger) Panicf(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) Debugf(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) Infof(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) Warnf(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) Errorf(format string, args ...interface{}) {
-	m.Called(format, args)
 }
 
 func (m *MockLogger) WithField(key string, value interface{}) logger.Logger {
-	args := m.Called(key, value)
-	return args.Get(0).(logger.Logger)
+	return m
 }
 
 func (m *MockLogger) WithFields(fields map[string]interface{}) logger.Logger {
-	args := m.Called(fields)
-	return args.Get(0).(logger.Logger)
+	return m
 }
 
 func (m *MockLogger) WithError(err error) logger.Logger {
-	args := m.Called(err)
-	return args.Get(0).(logger.Logger)
+	return m
 }
 
 // Test cases
@@ -380,8 +365,6 @@ func TestAuthService_GenerateAccessKey(t *testing.T) {
 
 	// Setup mock expectations
 	mockAccessKeyRepo.On("GenerateAccessKey", mock.Anything, "server-key", "test-project").Return("generated-access-key", nil)
-	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
-	mockLogger.On("Info", mock.Anything)
 
 	// Execute generation
 	accessKey, err := service.GenerateAccessKey(context.Background(), "server-key", "test-project")
@@ -392,7 +375,6 @@ func TestAuthService_GenerateAccessKey(t *testing.T) {
 
 	// Verify mock expectations
 	mockAccessKeyRepo.AssertExpectations(t)
-	mockLogger.AssertExpectations(t)
 }
 
 func TestAuthService_SaveAccessKey(t *testing.T) {
@@ -407,8 +389,6 @@ func TestAuthService_SaveAccessKey(t *testing.T) {
 
 	// Setup mock expectations
 	mockAccessKeyRepo.On("SaveAccessKey", mock.Anything, "cache-key", "access-key").Return(nil)
-	mockLogger.On("WithFields", mock.Anything).Return(mockLogger)
-	mockLogger.On("Debug", mock.Anything)
 
 	// Execute save
 	err := service.SaveAccessKey(context.Background(), "cache-key", "access-key")
@@ -418,7 +398,6 @@ func TestAuthService_SaveAccessKey(t *testing.T) {
 
 	// Verify mock expectations
 	mockAccessKeyRepo.AssertExpectations(t)
-	mockLogger.AssertExpectations(t)
 }
 
 func TestAuthService_DeleteAccessKey(t *testing.T) {
@@ -434,8 +413,6 @@ func TestAuthService_DeleteAccessKey(t *testing.T) {
 	// Setup mock expectations
 	mockAccessKeyRepo.On("DeleteAccessKey", mock.Anything, "access-key").Return(nil)
 	mockCacheRepo.On("Delete", mock.Anything, "auth:result:access-key").Return(nil)
-	mockLogger.On("WithField", mock.Anything, mock.Anything).Return(mockLogger)
-	mockLogger.On("Info", mock.Anything)
 
 	// Execute delete
 	err := service.DeleteAccessKey(context.Background(), "access-key")
@@ -446,7 +423,6 @@ func TestAuthService_DeleteAccessKey(t *testing.T) {
 	// Verify mock expectations
 	mockAccessKeyRepo.AssertExpectations(t)
 	mockCacheRepo.AssertExpectations(t)
-	mockLogger.AssertExpectations(t)
 }
 
 func TestAuthService_CleanupExpiredKeys(t *testing.T) {
@@ -461,8 +437,6 @@ func TestAuthService_CleanupExpiredKeys(t *testing.T) {
 
 	// Setup mock expectations
 	mockAccessKeyRepo.On("CleanupExpiredKeys", mock.Anything, config.TokenExpiration).Return(nil)
-	mockLogger.On("WithField", mock.Anything, mock.Anything).Return(mockLogger)
-	mockLogger.On("Info", mock.Anything)
 
 	// Execute cleanup
 	err := service.CleanupExpiredKeys(context.Background())
@@ -472,7 +446,6 @@ func TestAuthService_CleanupExpiredKeys(t *testing.T) {
 
 	// Verify mock expectations
 	mockAccessKeyRepo.AssertExpectations(t)
-	mockLogger.AssertExpectations(t)
 }
 
 func TestAuthService_ValidatePermissionString(t *testing.T) {

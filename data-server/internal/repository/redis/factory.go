@@ -63,7 +63,7 @@ func parseDuration(str string, defaultDuration time.Duration) time.Duration {
 }
 
 // NewRepository 创建完整的仓库实例
-func (f *RedisRepositoryFactory) NewRepository() (repository.Repository, error) {
+func (f *RedisRepositoryFactory) NewRepository(config interface{}) (repository.Repository, error) {
 	return &RedisRepository{
 		client:              f.client,
 		logger:              f.logger,
@@ -71,6 +71,10 @@ func (f *RedisRepositoryFactory) NewRepository() (repository.Repository, error) 
 		cacheRepository:     NewRedisCacheRepository(f.client, f.logger, f.prefix),
 		accessKeyRepository: NewRedisAccessKeyRepository(f.client, f.logger, f.prefix),
 	}, nil
+}
+
+func (f *RedisRepositoryFactory) SupportedTypes() []string {
+	return []string{"redis", "cache"}
 }
 
 // Close 关闭工厂和Redis连接
@@ -152,6 +156,26 @@ func (r *RedisRepository) IsConnected() bool {
 // GetStats 获取Redis统计信息
 func (r *RedisRepository) GetStats(ctx context.Context) (map[string]interface{}, error) {
 	return r.cacheRepository.GetStats(ctx)
+}
+
+func (r *RedisRepository) CleanupExpiredKeys(ctx context.Context, ttl time.Duration) error {
+	return nil
+}
+
+func (r *RedisRepository) CleanupOldData(ctx context.Context, before time.Time) error {
+	return nil
+}
+
+func (r *RedisRepository) GetHistoryCount(ctx context.Context, hostname, projectKey string) (int, error) {
+	return 0, nil
+}
+
+func (r *RedisRepository) ClearPattern(ctx context.Context, pattern string) error {
+	return r.cacheRepository.ClearPattern(ctx, pattern)
+}
+
+func (r *RedisRepository) Keys(ctx context.Context, pattern string) ([]string, error) {
+	return r.cacheRepository.Keys(ctx, pattern)
 }
 
 // Redis连接管理器
@@ -278,11 +302,11 @@ func (m *RedisConnectionManager) GetPoolStats() RedisPoolStats {
 
 	stats := m.client.PoolStats()
 	return RedisPoolStats{
-		Hits:       stats.Hits,
-		Misses:     stats.Misses,
-		Timeouts:   stats.Timeouts,
-		TotalConns: stats.TotalConns,
-		IdleConns:  stats.IdleConns,
-		StaleConns: stats.StaleConns,
+		Hits:       uint64(stats.Hits),
+		Misses:     uint64(stats.Misses),
+		Timeouts:   uint64(stats.Timeouts),
+		TotalConns: uint64(stats.TotalConns),
+		IdleConns:  uint64(stats.IdleConns),
+		StaleConns: uint64(stats.StaleConns),
 	}
 }

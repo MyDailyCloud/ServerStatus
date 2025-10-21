@@ -288,18 +288,24 @@ func createTestHistoryData() []*models.SystemInfo {
 	for i := 0; i < 10; i++ {
 		timestamp := now.Add(-time.Duration(i) * time.Minute)
 		history = append(history, &models.SystemInfo{
-			Hostname:        "test-host",
-			SessionID:       "test-session-1",
-			Timestamp:       timestamp,
-			CPUUsage:        float64(20 + i),
-			MemoryUsed:      4294967296 + uint64(i*100000000),
-			MemoryAvailable: 4294967296 - uint64(i*100000000),
-			DiskUsed:        53687091200 + uint64(i*1000000000),
-			DiskAvailable:   53687091200 - uint64(i*1000000000),
-			NetworkRx:       1073741824 + uint64(i*10000000),
-			NetworkTx:       2147483648 + uint64(i*20000000),
-			LoadAvg:         1.0 + float64(i)*0.1,
-			ProcessCount:    150 + i,
+			Hostname:  "test-host",
+			SessionID: "test-session-1",
+			Timestamp: timestamp,
+			CPU: models.CPUInfo{
+				UsagePercent: float64(20 + i),
+			},
+			Memory: models.MemInfo{
+				Used: 4294967296 + uint64(i*100000000),
+				Free: 4294967296 - uint64(i*100000000),
+			},
+			Disk: models.DiskInfo{
+				Used: 53687091200 + uint64(i*1000000000),
+				Free: 53687091200 - uint64(i*1000000000),
+			},
+			Network: models.NetInfo{
+				BytesRecv: 1073741824 + uint64(i*10000000),
+				BytesSent: 2147483648 + uint64(i*20000000),
+			},
 		})
 	}
 
@@ -309,13 +315,12 @@ func createTestHistoryData() []*models.SystemInfo {
 // Test cases
 func TestExportService_ExportServersCSV(t *testing.T) {
 	// Setup mocks
-	mockServerRepo := &MockServerRepository{}
 	mockHistoryRepo := &MockHistoryRepository{}
 	mockCacheRepo := &MockCacheRepository{}
 	mockLogger := &MockLogger{}
 
 	// Create service
-	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+	service := NewExportService(mockHistoryRepo, mockCacheRepo, mockLogger)
 
 	// Setup test data
 	server := createTestServerInfo()
@@ -380,13 +385,12 @@ func TestExportService_ExportServersCSV(t *testing.T) {
 
 func TestExportService_ExportServersJSON(t *testing.T) {
 	// Setup mocks
-	mockServerRepo := &MockServerRepository{}
 	mockHistoryRepo := &MockHistoryRepository{}
 	mockCacheRepo := &MockCacheRepository{}
 	mockLogger := &MockLogger{}
 
 	// Create service
-	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+	service := NewExportService(mockHistoryRepo, mockCacheRepo, mockLogger)
 
 	// Setup test data
 	server := createTestServerInfo()
@@ -450,13 +454,12 @@ func TestExportService_ExportServersJSON(t *testing.T) {
 
 func TestExportService_ExportHistoryCSV(t *testing.T) {
 	// Setup mocks
-	mockServerRepo := &MockServerRepository{}
 	mockHistoryRepo := &MockHistoryRepository{}
 	mockCacheRepo := &MockCacheRepository{}
 	mockLogger := &MockLogger{}
 
 	// Create service
-	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+	service := NewExportService(mockHistoryRepo, mockCacheRepo, mockLogger)
 
 	// Setup test data
 	history := createTestHistoryData()
@@ -596,13 +599,12 @@ func TestExportService_GetExportDataTypes(t *testing.T) {
 
 func TestExportService_EstimateExportSize(t *testing.T) {
 	// Setup mocks
-	mockServerRepo := &MockServerRepository{}
 	mockHistoryRepo := &MockHistoryRepository{}
 	mockCacheRepo := &MockCacheRepository{}
 	mockLogger := &MockLogger{}
 
 	// Create service
-	service := NewExportService(mockServerRepo, mockHistoryRepo, mockCacheRepo, mockLogger)
+	service := NewExportService(mockHistoryRepo, mockCacheRepo, mockLogger)
 
 	// Setup test data
 	server := createTestServerInfo()

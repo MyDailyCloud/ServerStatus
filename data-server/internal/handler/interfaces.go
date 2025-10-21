@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/kanshan/ServerStatus/data-server/internal/service"

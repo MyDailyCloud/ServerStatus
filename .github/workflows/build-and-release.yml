@@ -45,7 +45,7 @@ jobs:
     - name: Run unit tests with coverage
       run: |
         cd data-server
-        go test ./internal/config ./internal/service/health ./internal/service/websocket -v -coverprofile=coverage.out -covermode=atomic
+        go test ./internal/config ./internal/service/auth ./internal/service/health ./internal/service/websocket -v -coverprofile=coverage.out -covermode=atomic
         
     - name: Display coverage report
       run: |

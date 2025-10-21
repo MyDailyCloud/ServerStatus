@@ -305,7 +305,7 @@ func (r *RedisCacheRepository) GetStats(ctx context.Context) (map[string]interfa
 
 	// 统计当前前缀下的键数量
 	pattern := r.buildKey("*")
-	keyCount, err := r.client.ClientList(ctx).Result()
+	_, err = r.client.ClientList(ctx).Result()
 	if err == nil {
 		stats["prefix_pattern"] = pattern
 		// 这里可以添加更多自定义统计
