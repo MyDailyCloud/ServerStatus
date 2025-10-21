@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/kanshan/ServerStatus/data-server/internal/config"
+	"github.com/kanshan/ServerStatus/data-server/internal/models"
 	"github.com/kanshan/ServerStatus/data-server/internal/repository"
 	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 )
@@ -94,26 +95,116 @@ type RedisRepository struct {
 	accessKeyRepository repository.AccessKeyRepository
 }
 
-// ServerRepository 返回服务器仓库
-func (r *RedisRepository) ServerRepository() repository.ServerRepository {
-	// Redis主要用于缓存，不直接实现ServerRepository
-	return nil
+func (r *RedisRepository) CreateServer(ctx context.Context, server *models.ServerInfo) error {
+	return fmt.Errorf("Redis does not support CreateServer operation")
 }
 
-// HistoryRepository 返回历史数据仓库
-func (r *RedisRepository) HistoryRepository() repository.HistoryRepository {
-	// Redis主要用于缓存，不直接实现HistoryRepository
-	return nil
+func (r *RedisRepository) GetServer(ctx context.Context, sessionID string) (*models.ServerInfo, error) {
+	return nil, fmt.Errorf("Redis does not support GetServer operation")
 }
 
-// CacheRepository 返回缓存仓库
-func (r *RedisRepository) CacheRepository() repository.CacheRepository {
-	return r.cacheRepository
+func (r *RedisRepository) UpdateServer(ctx context.Context, server *models.ServerInfo) error {
+	return fmt.Errorf("Redis does not support UpdateServer operation")
 }
 
-// AccessKeyRepository 返回访问密钥仓库
-func (r *RedisRepository) AccessKeyRepository() repository.AccessKeyRepository {
-	return r.accessKeyRepository
+func (r *RedisRepository) DeleteServer(ctx context.Context, sessionID string) error {
+	return fmt.Errorf("Redis does not support DeleteServer operation")
+}
+
+func (r *RedisRepository) GetAllServers(ctx context.Context, projectKey string, offset, limit int) ([]*models.ServerInfo, error) {
+	return nil, fmt.Errorf("Redis does not support GetAllServers operation")
+}
+
+func (r *RedisRepository) GetServersByHostname(ctx context.Context, hostname string) ([]*models.ServerInfo, error) {
+	return nil, fmt.Errorf("Redis does not support GetServersByHostname operation")
+}
+
+func (r *RedisRepository) GetServersByProject(ctx context.Context, projectKey string, pagination *repository.Pagination) ([]*models.ServerInfo, error) {
+	return nil, fmt.Errorf("Redis does not support GetServersByProject operation")
+}
+
+func (r *RedisRepository) GetServerCount(ctx context.Context, projectKey string) (int, error) {
+	return 0, fmt.Errorf("Redis does not support GetServerCount operation")
+}
+
+func (r *RedisRepository) UpdateLastSeen(ctx context.Context, sessionID string) error {
+	return fmt.Errorf("Redis does not support UpdateLastSeen operation")
+}
+
+func (r *RedisRepository) GetOnlineServers(ctx context.Context, projectKey string, timeout time.Duration) ([]*models.ServerInfo, error) {
+	return nil, fmt.Errorf("Redis does not support GetOnlineServers operation")
+}
+
+func (r *RedisRepository) SaveHistoryData(ctx context.Context, data *models.SystemInfo) error {
+	return fmt.Errorf("Redis does not support SaveHistoryData operation")
+}
+
+func (r *RedisRepository) GetHostHistory(ctx context.Context, hostname, projectKey string, limit int) ([]*models.HistoryData, error) {
+	return nil, fmt.Errorf("Redis does not support GetHostHistory operation")
+}
+
+func (r *RedisRepository) GetHistoryByTimeRange(ctx context.Context, hostname, projectKey string, start, end time.Time) ([]*models.HistoryData, error) {
+	return nil, fmt.Errorf("Redis does not support GetHistoryByTimeRange operation")
+}
+
+func (r *RedisRepository) GetAggregatedData(ctx context.Context, hostname, projectKey string, interval time.Duration, limit int) ([]*models.HistoryData, error) {
+	return nil, fmt.Errorf("Redis does not support GetAggregatedData operation")
+}
+
+func (r *RedisRepository) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	return r.cacheRepository.Set(ctx, key, value, ttl)
+}
+
+func (r *RedisRepository) Get(ctx context.Context, key string, dest interface{}) error {
+	return r.cacheRepository.Get(ctx, key, dest)
+}
+
+func (r *RedisRepository) Delete(ctx context.Context, key string) error {
+	return r.cacheRepository.Delete(ctx, key)
+}
+
+func (r *RedisRepository) Exists(ctx context.Context, key string) (bool, error) {
+	return r.cacheRepository.Exists(ctx, key)
+}
+
+func (r *RedisRepository) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error {
+	return r.cacheRepository.SetMultiple(ctx, items, ttl)
+}
+
+func (r *RedisRepository) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) {
+	return r.cacheRepository.GetMultiple(ctx, keys)
+}
+
+func (r *RedisRepository) DeleteMultiple(ctx context.Context, keys []string) error {
+	return r.cacheRepository.DeleteMultiple(ctx, keys)
+}
+
+func (r *RedisRepository) IsConnected() bool {
+	return r.cacheRepository.IsConnected()
+}
+
+func (r *RedisRepository) GetType() string {
+	return r.cacheRepository.GetType()
+}
+
+func (r *RedisRepository) SaveAccessKey(ctx context.Context, cacheKey, accessKey string) error {
+	return r.accessKeyRepository.SaveAccessKey(ctx, cacheKey, accessKey)
+}
+
+func (r *RedisRepository) GetAccessKey(ctx context.Context, accessKey string) (string, error) {
+	return r.accessKeyRepository.GetAccessKey(ctx, accessKey)
+}
+
+func (r *RedisRepository) DeleteAccessKey(ctx context.Context, accessKey string) error {
+	return r.accessKeyRepository.DeleteAccessKey(ctx, accessKey)
+}
+
+func (r *RedisRepository) GenerateAccessKey(ctx context.Context, serverKey, projectKey string) (string, error) {
+	return r.accessKeyRepository.GenerateAccessKey(ctx, serverKey, projectKey)
+}
+
+func (r *RedisRepository) ValidateAccessKey(ctx context.Context, accessKey string) (string, error) {
+	return r.accessKeyRepository.ValidateAccessKey(ctx, accessKey)
 }
 
 // Ping 检查Redis连接
@@ -143,14 +234,6 @@ func (r *RedisRepository) GetClient() *redis.Client {
 // GetPrefix 获取键前缀
 func (r *RedisRepository) GetPrefix() string {
 	return r.prefix
-}
-
-// IsConnected 检查连接状态
-func (r *RedisRepository) IsConnected() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	return r.client.Ping(ctx).Err() == nil
 }
 
 // GetStats 获取Redis统计信息
