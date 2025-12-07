@@ -118,6 +118,11 @@ func (m *MockHistoryRepository) GetAggregatedData(ctx context.Context, hostname,
 	return args.Get(0).([]*models.HistoryData), args.Error(1)
 }
 
+func (m *MockHistoryRepository) GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *repository.Pagination) ([]*models.HistoryData, int, error) {
+	args := m.Called(ctx, hostname, projectKey, start, end, pagination)
+	return args.Get(0).([]*models.HistoryData), args.Int(1), args.Error(2)
+}
+
 func (m *MockHistoryRepository) Ping() error {
 	args := m.Called()
 	return args.Error(0)
@@ -279,6 +284,9 @@ func (m *mockHistoryRepo) GetHistoryCount(ctx context.Context, hostname, project
 }
 func (m *mockHistoryRepo) GetAggregatedData(ctx context.Context, hostname, projectKey string, interval time.Duration, limit int) ([]*models.HistoryData, error) {
 	return nil, nil
+}
+func (m *mockHistoryRepo) GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *repository.Pagination) ([]*models.HistoryData, int, error) {
+	return m.data, len(m.data), nil
 }
 func (m *mockHistoryRepo) Ping() error { return nil }
 
