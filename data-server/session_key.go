@@ -43,4 +43,3 @@ func deriveSessionKey(info *SystemInfo, projectKey, remoteAddr string) string {
 
 	return "auto-" + hex.EncodeToString(sum[:])[:16]
 }
-

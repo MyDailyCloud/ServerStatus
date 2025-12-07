@@ -50,4 +50,3 @@ func TestDeriveSessionKeyDeterministic(t *testing.T) {
 		t.Fatalf("expected different session key for different source IP, got same %s", id4)
 	}
 }
-

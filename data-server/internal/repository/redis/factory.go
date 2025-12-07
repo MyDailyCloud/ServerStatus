@@ -140,6 +140,9 @@ func (r *RedisRepository) GetHostHistory(ctx context.Context, hostname, projectK
 func (r *RedisRepository) GetHistoryByTimeRange(ctx context.Context, hostname, projectKey string, start, end time.Time) ([]*models.HistoryData, error) {
 	return nil, errNotImplemented
 }
+func (r *RedisRepository) GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *repository.Pagination) ([]*models.HistoryData, int, error) {
+	return nil, 0, errNotImplemented
+}
 func (r *RedisRepository) CleanupOldData(ctx context.Context, before time.Time) error {
 	return errNotImplemented
 }
@@ -187,6 +190,7 @@ func (r *RedisRepository) IsConnected() bool {
 func (r *RedisRepository) GetType() string {
 	return r.cacheRepository.GetType()
 }
+
 // AccessKey delegation
 func (r *RedisRepository) SaveAccessKey(ctx context.Context, cacheKey, accessKey string) error {
 	return r.accessKeyRepository.SaveAccessKey(ctx, cacheKey, accessKey)
@@ -235,7 +239,6 @@ func (r *RedisRepository) GetClient() *redis.Client {
 func (r *RedisRepository) GetPrefix() string {
 	return r.prefix
 }
-
 
 // Redis连接管理器
 type RedisConnectionManager struct {
