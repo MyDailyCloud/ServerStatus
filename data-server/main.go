@@ -95,10 +95,11 @@ type GPUInfo struct {
 }
 
 type OSInfo struct {
-	Platform string `json:"platform"`
-	Version  string `json:"version"`
-	Arch     string `json:"arch"`
-	Uptime   uint64 `json:"uptime"`
+	Platform     string `json:"platform"`
+	Version      string `json:"version"`
+	Architecture string `json:"architecture"` // 规范字段
+	Arch         string `json:"arch"`         // 兼容旧字段
+	Uptime       uint64 `json:"uptime"`
 }
 
 type TempInfo struct {
@@ -342,6 +343,10 @@ type AccessKeyCache struct {
 
 var (
 	startTime = time.Now() // 服务器启动时间
+
+	buildVersion = "2.2.0-dev" // 编译时可通过 -ldflags 覆盖
+	buildCommit  = "unknown"
+	buildTime    = "unknown"
 
 	data = &ServerData{
 		servers:        make(map[string]*ServerInfo),
@@ -616,6 +621,8 @@ func main() {
 	api.HandleFunc("/export/servers", handleExportServersCSV).Methods("GET")
 	api.HandleFunc("/export/history", handleExportHistoryCSV).Methods("GET")
 	api.HandleFunc("/export/user-resources", handleExportUserResourcesCSV).Methods("GET")
+	// 部署辅助：返回一键运行客户端的命令与env
+	api.HandleFunc("/deploy/agent-command", handleDeployAgentCommand).Methods("GET")
 
 	// WebSocket实时通信路由
 	if serverConfig.EnableWebSocket {
@@ -732,11 +739,13 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 	// 为数据添加项目密钥标识
 	info.ProjectKey = projectKey
 
-	// 使用sessionID作为key，如果没有sessionID则使用hostname（向后兼容）
-	sessionKey := info.SessionID
-	if sessionKey == "" {
-		sessionKey = info.Hostname
+	// 统一确定session key，优先使用客户端提供的sessionID，否则根据指纹生成
+	originalSession := info.SessionID
+	sessionKey := deriveSessionKey(&info, projectKey, r.RemoteAddr)
+	if originalSession == "" && sessionKey != "" {
+		log.Printf("[数据上报] 未提供SessionID，为主机 %s 生成自动Session: %s", info.Hostname, sessionKey)
 	}
+	info.SessionID = sessionKey
 
 	// 保存到数据库
 	if err := saveServerToDatabase(sessionKey, info.Hostname, projectKey, &info); err != nil {
@@ -1745,7 +1754,7 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	healthResponse := map[string]interface{}{
 		"status":     healthStatus,
 		"timestamp":  time.Now().UTC(),
-		"version":    "2.2.0-dev",
+		"version":    buildVersion,
 		"uptime":     time.Since(startTime),
 		"components": components,
 	}
@@ -1766,10 +1775,10 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 func handleVersion(w http.ResponseWriter, r *http.Request) {
 	version := map[string]interface{}{
 		"name":       "ServerStatus Data Server",
-		"version":    "2.2.0-dev",
-		"build_time": "2024-10-06T21:00:00Z",
+		"version":    buildVersion,
+		"build_time": buildTime,
 		"go_version": runtime.Version(),
-		"git_commit": "unknown",
+		"git_commit": buildCommit,
 		"hostname":   getHostname(),
 		"platform":   runtime.GOOS + "/" + runtime.GOARCH,
 		"uptime":     time.Since(startTime).String(),
@@ -2510,6 +2519,74 @@ func handleExportUserResourcesCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[数据导出] 导出用户资源CSV，主机: %s, 项目: %s (占位符)", hostname, projectKey)
+}
+
+// handleDeployAgentCommand 返回一键运行客户端的命令与.env内容
+func handleDeployAgentCommand(w http.ResponseWriter, r *http.Request) {
+	baseURL := r.URL.Query().Get("base_url")
+	if baseURL == "" {
+		baseURL = "https://serverstatus.ltd"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	serverURL := fmt.Sprintf("%s/api/data", baseURL)
+
+	enableUserResources := false
+	if v := r.URL.Query().Get("user_resources"); strings.EqualFold(v, "true") || v == "1" {
+		enableUserResources = true
+	}
+
+	linuxCmd := fmt.Sprintf(
+		"./monitor-agent -url \"%s\" -key \"%s\" -server-key \"%s\" -user-resources=%t",
+		serverURL, serverConfig.ProjectKey, serverConfig.ServerKey, enableUserResources,
+	)
+
+	// 默认假设 Linux amd64 二进制名称，可在命令中通过 AGENT_BIN 覆盖
+	agentBinary := "monitor-agent-linux-amd64"
+	downloadURL := fmt.Sprintf("https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/%s", agentBinary)
+
+	linuxInstall := fmt.Sprintf(
+		"AGENT_BIN=${AGENT_BIN:-%s} SERVER_URL=\"%s\" PROJECT_KEY=\"%s\" SERVER_KEY=\"%s\" ENABLE_USER_RESOURCES=%t; "+
+			"curl -L -o \"$AGENT_BIN\" \"%s\" && chmod +x \"$AGENT_BIN\" && ./\"$AGENT_BIN\" -url \"$SERVER_URL\" -key \"$PROJECT_KEY\" -server-key \"$SERVER_KEY\" -user-resources=$ENABLE_USER_RESOURCES",
+		agentBinary, serverURL, serverConfig.ProjectKey, serverConfig.ServerKey, enableUserResources, downloadURL,
+	)
+
+	windowsCmd := fmt.Sprintf(
+		"monitor-agent.exe -url \"%%SERVER_URL%%\" -key \"%%PROJECT_KEY%%\" -server-key \"%%SERVER_KEY%%\" -user-resources=%%ENABLE_USER_RESOURCES%%",
+	)
+
+	windowsInstall := fmt.Sprintf(
+		"$env:SERVER_URL=\"%s\"; $env:PROJECT_KEY=\"%s\"; $env:SERVER_KEY=\"%s\"; $env:ENABLE_USER_RESOURCES=%t; "+
+			"$bin=\"monitor-agent-windows-amd64.exe\"; "+
+			"Invoke-WebRequest -Uri \"https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/$bin\" -OutFile $bin; "+
+			"./$bin -url $env:SERVER_URL -key $env:PROJECT_KEY -server-key $env:SERVER_KEY -user-resources=$env:ENABLE_USER_RESOURCES",
+		serverURL, serverConfig.ProjectKey, serverConfig.ServerKey, enableUserResources,
+	)
+
+	envContent := fmt.Sprintf(
+		"SERVER_URL=%s\nPROJECT_KEY=%s\nSERVER_KEY=%s\nENABLE_USER_RESOURCES=%t\n",
+		serverURL, serverConfig.ProjectKey, serverConfig.ServerKey, enableUserResources,
+	)
+
+	response := map[string]interface{}{
+		"server_url":      serverURL,
+		"project_key":     serverConfig.ProjectKey,
+		"server_key":      serverConfig.ServerKey,
+		"linux_command":   linuxCmd,
+		"windows_command": windowsCmd,
+		"linux_install":   linuxInstall,
+		"windows_install": windowsInstall,
+		"env":             envContent,
+		"download_urls": map[string]string{
+			"latest_release": "https://github.com/MyDailyCloud/ServerStatus/releases/latest",
+		},
+		"note": "已提供直接下载并运行的一键命令，若需自定义架构请调整 AGENT_BIN 或下载 URL。",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding deploy command response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // printServerUsage 打印服务器使用说明

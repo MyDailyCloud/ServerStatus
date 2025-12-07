@@ -117,6 +117,28 @@ header h1 {
     gap: 5px;
 }
 
+.version-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.version-badge.ok {
+    border-color: #22c55e;
+    color: #16a34a;
+}
+
+.version-badge.error {
+    border-color: #f97316;
+    color: #ea580c;
+}
+
 .status {
     padding: 8px 16px;
     border-radius: 20px;

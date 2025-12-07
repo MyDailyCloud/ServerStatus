@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/kanshan/ServerStatus/data-server/internal/models"
@@ -174,6 +175,95 @@ func (r *SQLiteHistoryRepository) GetHistoryByTimeRange(ctx context.Context, hos
 	return historyData, nil
 }
 
+// GetHistoryByTimeRangePaged 获取时间范围内的历史数据（分页）并返回总数
+func (r *SQLiteHistoryRepository) GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *repository.Pagination) ([]*models.HistoryData, int, error) {
+	if pagination == nil || pagination.PageSize <= 0 {
+		pagination = &repository.Pagination{Page: 1, PageSize: 50}
+	}
+	offset := pagination.Offset
+	limit := pagination.Limit
+	if limit <= 0 {
+		limit = pagination.PageSize
+	}
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM server_history
+		WHERE hostname = ?
+		  AND (project_key = ? OR ? = '')
+		  AND timestamp >= ?
+		  AND timestamp <= ?
+	`
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, hostname, projectKey, projectKey, start, end).Scan(&total); err != nil {
+		r.logger.WithError(err).WithFields(map[string]interface{}{
+			"hostname":    hostname,
+			"project_key": projectKey,
+			"start_time":  start,
+			"end_time":    end,
+		}).Error("Failed to count history by time range")
+		return nil, 0, fmt.Errorf("failed to count history by time range: %w", err)
+	}
+
+	query := `
+		SELECT session_id, hostname, project_key, cpu_usage, memory_used, memory_available,
+			   disk_used, disk_available, network_rx, network_tx, load_avg, process_count, timestamp
+		FROM server_history
+		WHERE hostname = ?
+		  AND (project_key = ? OR ? = '')
+		  AND timestamp >= ?
+		  AND timestamp <= ?
+		ORDER BY timestamp DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, hostname, projectKey, projectKey, start, end, limit, offset)
+	if err != nil {
+		r.logger.WithError(err).WithFields(map[string]interface{}{
+			"hostname":    hostname,
+			"project_key": projectKey,
+			"start_time":  start,
+			"end_time":    end,
+			"limit":       limit,
+			"offset":      offset,
+		}).Error("Failed to query history by time range (paged)")
+		return nil, 0, fmt.Errorf("failed to query history by time range (paged): %w", err)
+	}
+	defer rows.Close()
+
+	var historyData []*models.HistoryData
+	for rows.Next() {
+		data := &models.HistoryData{}
+		if err := rows.Scan(
+			&data.SessionID,
+			&data.Hostname,
+			&data.ProjectKey,
+			&data.CPUUsage,
+			&data.MemoryUsed,
+			&data.MemoryAvailable,
+			&data.DiskUsed,
+			&data.DiskAvailable,
+			&data.NetworkRx,
+			&data.NetworkTx,
+			&data.LoadAvg,
+			&data.ProcessCount,
+			&data.Timestamp,
+		); err != nil {
+			r.logger.WithError(err).Error("Failed to scan history row (paged)")
+			continue
+		}
+		historyData = append(historyData, data)
+	}
+
+	if err = rows.Err(); err != nil {
+		r.logger.WithError(err).Error("Error iterating history rows (paged)")
+		return nil, 0, fmt.Errorf("error iterating history rows (paged): %w", err)
+	}
+
+	return historyData, total, nil
+}
+
 // CleanupOldData 清理旧数据
 func (r *SQLiteHistoryRepository) CleanupOldData(ctx context.Context, before time.Time) error {
 	query := `DELETE FROM server_history WHERE timestamp < ?`
@@ -229,6 +319,12 @@ func (r *SQLiteHistoryRepository) GetAggregatedData(ctx context.Context, hostnam
 		intervalStr = "strftime('%Y-%m-%d', timestamp)"
 	}
 
+	// 估算回溯窗口，按请求的聚合桶数量反推天数，避免扫描过多历史
+	windowDays := int(math.Ceil(interval.Hours()*float64(limit)/24.0)) + 1
+	if windowDays < 1 {
+		windowDays = 1
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
 			%s as time_bucket,
@@ -245,13 +341,14 @@ func (r *SQLiteHistoryRepository) GetAggregatedData(ctx context.Context, hostnam
 		FROM server_history
 		WHERE hostname = ?
 		  AND (project_key = ? OR ? = '')
-		  AND timestamp >= datetime('now', '-%d days')
+		  AND timestamp >= datetime('now', ?)
 		GROUP BY time_bucket
 		ORDER BY time_bucket DESC
 		LIMIT ?
-	`, intervalStr, int(interval.Hours()*7)/24) // 获取大约7倍间隔时间的数据
+	`, intervalStr)
 
-	rows, err := r.db.QueryContext(ctx, query, hostname, projectKey, projectKey, limit)
+	windowParam := fmt.Sprintf("-%d day", windowDays)
+	rows, err := r.db.QueryContext(ctx, query, hostname, projectKey, projectKey, windowParam, limit)
 	if err != nil {
 		r.logger.WithError(err).WithFields(map[string]interface{}{
 			"hostname":    hostname,

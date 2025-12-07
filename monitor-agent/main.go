@@ -181,6 +181,11 @@ var (
 
 	// 静默模式状态
 	firstReportSuccess = false
+
+	// 编译信息（可通过 -ldflags 覆盖）
+	buildVersion = "dev"
+	buildCommit  = "unknown"
+	buildTime    = "unknown"
 )
 
 func main() {
@@ -211,6 +216,7 @@ func main() {
 	log.Println("启动 ServerStatus Monitor Agent...")
 	log.Println("📦 项目地址 | Project Repository: https://github.com/MyDailyCloud/ServerStatus")
 	log.Println("⭐ 如果觉得有用，请给个Star支持一下 | If you find it useful, please give us a Star!")
+	log.Printf("版本信息 | Version: %s (commit: %s, build: %s)", buildVersion, buildCommit, buildTime)
 
 	// 强制要求双密钥认证
 	if config.ProjectKey == "" || config.ServerKey == "" {

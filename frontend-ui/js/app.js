@@ -3613,7 +3613,7 @@ function updateDownloadCommands() {
         fileName = 'monitor-agent.exe';
     }
     
-    const baseUrl = 'https://release.serverstatus.ltd/';
+        const baseUrl = 'https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/';
     const downloadUrl = baseUrl + fileName;
     
     // 更新下载命令

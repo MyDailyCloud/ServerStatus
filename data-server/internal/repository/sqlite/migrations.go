@@ -271,6 +271,11 @@ func InitializeDatabase(ctx context.Context, dbPath string, logger logger.Logger
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
+	// 减少写入竞争时的错误，设置忙等待超时
+	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout = 5000"); err != nil {
+		logger.Warn("Failed to set busy_timeout, continuing without it")
+	}
+
 	// 启用WAL模式以提高并发性能
 	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode = WAL"); err != nil {
 		logger.Warn("Failed to enable WAL mode, continuing without it")

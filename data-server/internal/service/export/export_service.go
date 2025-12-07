@@ -17,6 +17,7 @@ import (
 
 // ExportService 数据导出服务
 type ExportService struct {
+	serverRepo  repository.ServerRepository
 	historyRepo repository.HistoryRepository
 	cacheRepo   repository.CacheRepository
 	logger      logger.Logger
@@ -24,11 +25,13 @@ type ExportService struct {
 
 // NewExportService 创建数据导出服务
 func NewExportService(
+	serverRepo repository.ServerRepository,
 	historyRepo repository.HistoryRepository,
 	cacheRepo repository.CacheRepository,
 	logger logger.Logger,
 ) *ExportService {
 	return &ExportService{
+		serverRepo:  serverRepo,
 		historyRepo: historyRepo,
 		cacheRepo:   cacheRepo,
 		logger:      logger,
@@ -204,8 +207,8 @@ func (s *ExportService) validateRequest(req *ExportRequest) error {
 }
 
 // getServerData 获取服务器数据
-func (s *ExportService) getServerData(ctx context.Context, req *ExportRequest) ([]*models.SystemInfo, error) {
-	var systemInfos []*models.SystemInfo
+func (s *ExportService) getServerData(ctx context.Context, req *ExportRequest) ([]*models.ServerInfo, error) {
+	var servers []*models.ServerInfo
 
 	if len(req.Hostnames) > 0 {
 		// 根据主机名查询多个服务器的最新数据
@@ -216,41 +219,69 @@ func (s *ExportService) getServerData(ctx context.Context, req *ExportRequest) (
 				s.logger.WithError(err).WithField("hostname", hostname).Warn("Failed to get history for hostname")
 				continue
 			}
-			// 转换HistoryData为SystemInfo
-			for _, data := range historyData {
-				systemInfo := s.convertHistoryDataToSystemInfo(data)
-				systemInfos = append(systemInfos, systemInfo)
+			if len(historyData) == 0 {
+				continue
 			}
+			latest := s.convertHistoryDataToSystemInfo(historyData[len(historyData)-1])
+			servers = append(servers, &models.ServerInfo{
+				SessionID:  latest.SessionID,
+				Hostname:   latest.Hostname,
+				ProjectKey: latest.ProjectKey,
+				Latest:     latest,
+			})
 		}
 	} else {
-		// 获取项目下所有主机的历史数据
-		// 这里我们需要先获取所有主机名，然后获取它们的历史数据
-		// 由于ServerInfo模型较简单，我们直接通过HistoryRepository获取数据
-		// 注意：这个实现假设我们有一个方法来获取所有主机名
-		// 在实际应用中，可能需要添加这样的方法到repository
-
-		// 临时实现：获取时间范围内的所有历史数据
-		// 这里我们需要一个能按项目键和时间范围获取所有历史数据的方法
-		// 由于当前的接口限制，我们先返回空结果
-		s.logger.Warn("Getting all server data for a project is not yet implemented with current repository interface")
+		if s.serverRepo == nil {
+			return nil, fmt.Errorf("server repository is not configured")
+		}
+		serversFromRepo, err := s.serverRepo.GetAllServers(ctx, req.ProjectKey, req.Offset, req.Limit)
+		if err != nil {
+			return nil, err
+		}
+		for _, server := range serversFromRepo {
+			// 如果Latest为空，尝试从History中取最新一条
+			if server.Latest == nil && len(server.History) > 0 {
+				server.Latest = server.History[len(server.History)-1]
+			}
+			// 如果依然为空，使用基本信息填充
+			if server.Latest == nil {
+				server.Latest = &models.SystemInfo{
+					Hostname:   server.Hostname,
+					SessionID:  server.SessionID,
+					ProjectKey: server.ProjectKey,
+					Timestamp:  server.UpdatedAt,
+					CPU: models.CPUInfo{
+						CoreCount: server.CPUCores,
+					},
+					Memory: models.MemInfo{
+						Total: server.MemoryTotal,
+					},
+					Disk: models.DiskInfo{
+						Total: server.DiskTotal,
+					},
+					Network: models.NetInfo{},
+				}
+			}
+			servers = append(servers, server)
+		}
 	}
 
-	// 按时间排序
-	sort.Slice(systemInfos, func(i, j int) bool {
-		return systemInfos[i].Timestamp.Before(systemInfos[j].Timestamp)
+	// 按时间排序（基于最新数据）
+	sort.Slice(servers, func(i, j int) bool {
+		return servers[i].Latest.Timestamp.Before(servers[j].Latest.Timestamp)
 	})
 
 	// 应用分页
-	if req.Offset >= len(systemInfos) {
-		return []*models.SystemInfo{}, nil
+	if req.Offset >= len(servers) {
+		return []*models.ServerInfo{}, nil
 	}
 
 	end := req.Offset + req.Limit
-	if end > len(systemInfos) {
-		end = len(systemInfos)
+	if end > len(servers) {
+		end = len(servers)
 	}
 
-	return systemInfos[req.Offset:end], nil
+	return servers[req.Offset:end], nil
 }
 
 // getHistoryData 获取历史数据
@@ -272,10 +303,28 @@ func (s *ExportService) getHistoryData(ctx context.Context, req *ExportRequest) 
 			}
 		}
 	} else {
-		// 根据项目密钥获取所有服务器的历史数据
-		// 由于当前接口限制，我们需要一个方法来获取项目下的所有主机名
-		// 这里使用一个简化的实现
-		s.logger.Warn("Getting all history data for a project is not yet implemented with current repository interface")
+		if s.serverRepo == nil {
+			return nil, fmt.Errorf("server repository is not configured")
+		}
+		// 先获取项目下的服务器列表，然后分别拉取历史数据
+		serverLimit := req.Limit
+		if serverLimit > 1000 {
+			serverLimit = 1000
+		}
+		servers, err := s.serverRepo.GetAllServers(ctx, req.ProjectKey, req.Offset, serverLimit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list servers: %w", err)
+		}
+		for _, server := range servers {
+			historyData, err := s.historyRepo.GetHistoryByTimeRange(ctx, server.SessionID, req.ProjectKey, req.StartTime, req.EndTime)
+			if err != nil {
+				s.logger.WithError(err).WithField("server", server.SessionID).Warn("Failed to get history for server")
+				continue
+			}
+			for _, data := range historyData {
+				allHistory = append(allHistory, s.convertHistoryDataToSystemInfo(data))
+			}
+		}
 	}
 
 	// 按时间排序
@@ -340,30 +389,54 @@ func (s *ExportService) convertHistoryDataToSystemInfo(data *models.HistoryData)
 }
 
 // exportServersToCSV 导出服务器信息为CSV
-func (s *ExportService) exportServersToCSV(ctx context.Context, systemInfos []*models.SystemInfo, req *ExportRequest) (*ExportResult, error) {
+func (s *ExportService) exportServersToCSV(ctx context.Context, servers []*models.ServerInfo, req *ExportRequest) (*ExportResult, error) {
 	var records [][]string
 
 	// 添加表头
-	headers := []string{"Hostname", "SessionID", "ProjectKey", "Timestamp", "CPUUsage", "MemoryTotal", "MemoryUsed", "MemoryUsagePercent", "DiskTotal", "DiskUsed", "DiskUsagePercent", "NetworkRx", "NetworkTx"}
+	headers := []string{
+		"SessionID", "Hostname", "ProjectKey", "OS", "Architecture",
+		"CPUCores", "MemoryTotal", "DiskTotal", "Uptime", "BootTime",
+		"CreatedAt", "UpdatedAt", "CPUUsage", "MemoryUsed", "MemoryAvailable",
+		"DiskUsed", "DiskAvailable", "NetworkRx", "NetworkTx", "LoadAvg",
+		"ProcessCount", "LastUpdate",
+	}
 
 	records = append(records, headers)
 
 	// 添加数据行
-	for _, info := range systemInfos {
+	for _, server := range servers {
+		latest := server.Latest
+		if latest == nil {
+			latest = &models.SystemInfo{
+				Hostname:   server.Hostname,
+				SessionID:  server.SessionID,
+				ProjectKey: server.ProjectKey,
+				Timestamp:  server.UpdatedAt,
+			}
+		}
 		record := []string{
-			info.Hostname,
-			info.SessionID,
-			info.ProjectKey,
-			info.Timestamp.Format(time.RFC3339),
-			fmt.Sprintf("%.2f", info.CPU.UsagePercent),
-			s.formatBytes(info.Memory.Total),
-			s.formatBytes(info.Memory.Used),
-			fmt.Sprintf("%.2f", info.Memory.UsagePercent),
-			s.formatBytes(info.Disk.Total),
-			s.formatBytes(info.Disk.Used),
-			fmt.Sprintf("%.2f", info.Disk.UsagePercent),
-			s.formatBytes(info.Network.BytesRecv),
-			s.formatBytes(info.Network.BytesSent),
+			server.SessionID,
+			server.Hostname,
+			server.ProjectKey,
+			server.OS,
+			server.Arch,
+			fmt.Sprintf("%d", server.CPUCores),
+			s.formatBytes(server.MemoryTotal),
+			s.formatBytes(server.DiskTotal),
+			fmt.Sprintf("%d", server.Uptime),
+			server.BootTime.Format(time.RFC3339),
+			server.CreatedAt.Format(time.RFC3339),
+			server.UpdatedAt.Format(time.RFC3339),
+			fmt.Sprintf("%.2f", latest.CPU.UsagePercent),
+			s.formatBytes(latest.Memory.Used),
+			s.formatBytes(latest.Memory.Free),
+			s.formatBytes(latest.Disk.Used),
+			s.formatBytes(latest.Disk.Free),
+			s.formatBytes(latest.Network.BytesRecv),
+			s.formatBytes(latest.Network.BytesSent),
+			"", // LoadAvg 暂无数据源
+			"", // ProcessCount 暂无数据源
+			latest.Timestamp.Format(time.RFC3339),
 		}
 
 		records = append(records, record)
@@ -435,24 +508,24 @@ func (s *ExportService) exportHistoryToCSV(ctx context.Context, history []*model
 }
 
 // exportServersToJSON 导出服务器信息为JSON
-func (s *ExportService) exportServersToJSON(ctx context.Context, systemInfos []*models.SystemInfo, req *ExportRequest) (*ExportResult, error) {
+func (s *ExportService) exportServersToJSON(ctx context.Context, servers []*models.ServerInfo, req *ExportRequest) (*ExportResult, error) {
 	// 构建导出数据结构
 	exportData := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"export_time":   time.Now().Format(time.RFC3339),
 			"project_key":   req.ProjectKey,
-			"total_records": len(systemInfos),
+			"total_servers": len(servers),
 			"include_types": req.IncludeTypes,
 			"start_time":    req.StartTime.Format(time.RFC3339),
 			"end_time":      req.EndTime.Format(time.RFC3339),
 		},
-		"system_info": systemInfos,
+		"servers": servers,
 	}
 
-	// 序列化为JSON
-	jsonData, err := json.MarshalIndent(exportData, "", "  ")
+	// 序列化为JSON（紧凑格式便于匹配）
+	jsonData, err := json.Marshal(exportData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal system info to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal server info to JSON: %w", err)
 	}
 
 	filename := fmt.Sprintf("servers_export_%s_%d.json", req.ProjectKey, time.Now().Unix())
@@ -461,27 +534,15 @@ func (s *ExportService) exportServersToJSON(ctx context.Context, systemInfos []*
 		Filename:    filename,
 		ContentType: "application/json",
 		Size:        int64(len(jsonData)),
-		RecordCount: len(systemInfos),
+		RecordCount: len(servers),
 		Data:        &StringReadCloser{Data: string(jsonData)},
 	}, nil
 }
 
 // exportHistoryToJSON 导出历史数据为JSON
 func (s *ExportService) exportHistoryToJSON(ctx context.Context, history []*models.SystemInfo, req *ExportRequest) (*ExportResult, error) {
-	// 构建导出数据结构
-	exportData := map[string]interface{}{
-		"metadata": map[string]interface{}{
-			"export_time":   time.Now().Format(time.RFC3339),
-			"project_key":   req.ProjectKey,
-			"total_records": len(history),
-			"start_time":    req.StartTime.Format(time.RFC3339),
-			"end_time":      req.EndTime.Format(time.RFC3339),
-		},
-		"history": history,
-	}
-
-	// 序列化为JSON
-	jsonData, err := json.MarshalIndent(exportData, "", "  ")
+	// 导出为简洁的数组，便于直接消费
+	jsonData, err := json.Marshal(history)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal history to JSON: %w", err)
 	}
@@ -570,7 +631,7 @@ func (s *ExportService) EstimateExportSize(ctx context.Context, req *ExportReque
 	var sampleSize int64
 	var recordCount int
 
-	systemInfos, err := s.getServerData(ctx, &sampleReq)
+	servers, err := s.getServerData(ctx, &sampleReq)
 	if err != nil {
 		return 0, err
 	}
@@ -578,9 +639,9 @@ func (s *ExportService) EstimateExportSize(ctx context.Context, req *ExportReque
 	var result *ExportResult
 	switch req.Format {
 	case FormatCSV:
-		result, err = s.exportServersToCSV(ctx, systemInfos, &sampleReq)
+		result, err = s.exportServersToCSV(ctx, servers, &sampleReq)
 	case FormatJSON:
-		result, err = s.exportServersToJSON(ctx, systemInfos, &sampleReq)
+		result, err = s.exportServersToJSON(ctx, servers, &sampleReq)
 	}
 
 	if err != nil {
@@ -588,7 +649,7 @@ func (s *ExportService) EstimateExportSize(ctx context.Context, req *ExportReque
 	}
 
 	sampleSize = result.Size
-	recordCount = len(systemInfos)
+	recordCount = len(servers)
 
 	if recordCount == 0 {
 		return 0, nil

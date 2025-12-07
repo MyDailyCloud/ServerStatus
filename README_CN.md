@@ -62,66 +62,46 @@ ServerStatus v2.x 是一个企业级的轻量化服务器监控系统，采用 G
 
 ---
 
-## 🚀 快速开始
+## 🚀 快速开始（多平台）
 
-### 方式一：自动安装脚本（推荐）
+### 方式一：直接使用发布版二进制（最快）
+- 支持 Linux / Windows / macOS，x86_64 与 ARM64（M1/M2/M3 等）  
+- 到 GitHub Releases 下载对应文件并运行：  
+  - 服务端：`data-server-<os>-<arch>`  
+  - 代理：`monitor-agent-<os>-<arch>`
 
+示例（Linux x86_64）：
 ```bash
-# 下载安装脚本
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/install.sh -o install.sh
-chmod +x install.sh
-
-# 安装服务端（交互式）
-./install.sh server
-
-# 安装监控客户端（交互式）
-./install.sh client
-```
-
-脚本功能：
-- 自动检测平台和架构
-- 下载对应的二进制文件
-- 生成配置文件
-- 可选注册为系统服务
-
-### 方式二：手动安装
-
-**服务端部署（示例：Linux x86_64）**
-
-```bash
-# 下载服务端
 wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux-amd64
 chmod +x data-server-linux-amd64
-
-# 启动服务端
-./data-server-linux-amd64 -key public -port 8080
+./data-server-linux-amd64 -config server-config.json
 ```
 
-**监控客户端部署（在被监控主机上）**
-
+### 方式二：Docker / Docker Compose（已编译镜像）
+根目录执行：
 ```bash
-# 下载客户端
-wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux-amd64
-chmod +x monitor-agent-linux-amd64
-
-# 启动客户端
-./monitor-agent-linux-amd64 -url http://<服务器IP>:8080/api/data -key public
+docker compose -f deploy/docker-compose.yml up --build
 ```
+默认暴露：服务端 `8080`，前端 `8081`。首启自动生成示例配置，并挂载到 `data/`、`data-server/logs`、`data-server/exports`。
 
-**访问监控面板**
-
-```
-http://<服务器IP>:8080/?key=public
-```
-
-### 方式三：Docker/Docker Compose
-
+### 方式三：源码本地编译
 ```bash
-cd deploy
-docker-compose up -d
+cd data-server
+go mod download
+CGO_ENABLED=1 go build -o data-server .
 
-# 访问面板
-http://localhost:8080/?key=public
+cd ../monitor-agent
+go mod download
+go build -o monitor-agent .
+```
+建议安装 SQLite 头文件（Linux/macOS：`libsqlite3-dev` / `sqlite-devel`），确保 CGO 可用。
+
+### 方式四：一键安装脚本
+```bash
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/install.sh -o install.sh
+chmod +x install.sh
+./install.sh server   # 交互式安装服务端
+./install.sh client   # 交互式安装客户端
 ```
 
 ---

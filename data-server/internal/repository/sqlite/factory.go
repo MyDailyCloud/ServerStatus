@@ -30,6 +30,11 @@ func NewSQLiteRepositoryFactory(cfg *config.DatabaseConfig, logger logger.Logger
 	// 配置连接池
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	if cfg.ConnMaxLifetime != "" {
+		if d, err := time.ParseDuration(cfg.ConnMaxLifetime); err == nil {
+			db.SetConnMaxLifetime(d)
+		}
+	}
 
 	return &SQLiteRepositoryFactory{
 		db:     db,
@@ -200,6 +205,10 @@ func (r *SQLiteRepository) GetHostHistory(ctx context.Context, hostname, project
 
 func (r *SQLiteRepository) GetHistoryByTimeRange(ctx context.Context, hostname, projectKey string, start, end time.Time) ([]*models.HistoryData, error) {
 	return r.historyRepository.GetHistoryByTimeRange(ctx, hostname, projectKey, start, end)
+}
+
+func (r *SQLiteRepository) GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *repository.Pagination) ([]*models.HistoryData, int, error) {
+	return r.historyRepository.GetHistoryByTimeRangePaged(ctx, hostname, projectKey, start, end, pagination)
 }
 
 func (r *SQLiteRepository) GetHistoryCount(ctx context.Context, hostname, projectKey string) (int, error) {

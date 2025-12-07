@@ -1,0 +1,236 @@
+services:
+  # Data Server - 测试/演示用 API 服务器
+  data-server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    container_name: serverstatus-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+    volumes:
+      - ../data-server/web-ui:/app/web-ui
+      - ../data-server/API.md:/app/API.md
+      - ../data:/app/data
+      - ../data-server/logs:/app/logs
+      - ../data-server/exports:/app/exports
+    networks:
+      - serverstatus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/servers"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Monitor Agent - 监控客户端1
+  monitor-agent-1:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-1
+    hostname: test-server-1
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端2
+  monitor-agent-2:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-2
+    hostname: test-server-2
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端3
+  monitor-agent-3:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-3
+    hostname: test-server-3
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端4
+  monitor-agent-4:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-4
+    hostname: test-server-4
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端5
+  monitor-agent-5:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-5
+    hostname: test-server-5
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端6
+  monitor-agent-6:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-6
+    hostname: test-server-6
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端7
+  monitor-agent-7:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-7
+    hostname: test-server-7
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端8
+  monitor-agent-8:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-8
+    hostname: test-server-8
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端9
+  monitor-agent-9:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-9
+    hostname: test-server-9
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # Monitor Agent - 监控客户端10
+  monitor-agent-10:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent-10
+    hostname: test-server-10
+    environment:
+      - SERVER_URL=http://data-server:8080/api/data
+      - PROJECT_KEY=test-demo-01
+      - SERVER_KEY=test-secret-01
+      - ENABLE_USER_RESOURCES=true
+    depends_on:
+      data-server:
+        condition: service_healthy
+    networks:
+      - serverstatus
+    restart: unless-stopped
+
+  # 前端UI服务 (简化版，直接使用Python HTTP服务器)
+  frontend:
+    image: python:3.9-slim
+    container_name: serverstatus-frontend
+    ports:
+      - "8081:8000"
+    volumes:
+      - ../frontend-ui:/app:ro
+    working_dir: /app
+    command: python -m http.server 8000
+    networks:
+      - serverstatus
+    depends_on:
+      - data-server
+
+networks:
+  serverstatus:
+    driver: bridge
+

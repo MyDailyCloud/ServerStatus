@@ -29,6 +29,8 @@ class GPUMonitor {
         this.viewMode = 'cards'; // 'cards' or 'grouped'
         this.selectedServers = new Set();
         this.contextMenuTarget = null;
+        this.versionInfo = null;
+        this.versionLoadState = 'idle';
         
         this.init();
     }
@@ -67,6 +69,7 @@ class GPUMonitor {
         this.startPolling();
         this.loadInitialData();
         this.initializeTutorial();
+        this.loadVersionInfo();
     }
 
     initializeTutorial() {
@@ -86,6 +89,9 @@ class GPUMonitor {
             zh: {
                 // 页面标题和导航
                 pageTitle: 'ServerStatus Monitor',
+                versionLabel: '后端版本',
+                versionLoading: '获取中…',
+                versionFailed: '获取失败',
                 connectionStatus: {
                     online: '数据正常',
                     offline: '连接异常',
@@ -298,6 +304,9 @@ class GPUMonitor {
             en: {
                 // 页面标题和导航
                 pageTitle: 'ServerStatus Monitor',
+                versionLabel: 'Backend version',
+                versionLoading: 'checking…',
+                versionFailed: 'unavailable',
                 connectionStatus: {
                     online: 'Online',
                     offline: 'Offline',
@@ -582,8 +591,76 @@ class GPUMonitor {
         this.updateExportTexts();
         this.updateAlertsTexts();
         this.updateGroupTexts();
+        this.renderVersionBadge();
     }
     
+    renderVersionBadge() {
+        const badge = document.getElementById('version-badge');
+        if (!badge) return;
+
+        const label = this.t('versionLabel');
+        badge.classList.remove('ok', 'error');
+
+        if (this.versionLoadState === 'loading') {
+            badge.textContent = `${label}: ${this.t('versionLoading')}`;
+            return;
+        }
+
+        if (this.versionLoadState === 'error') {
+            badge.textContent = `${label}: ${this.t('versionFailed')}`;
+            badge.classList.add('error');
+            return;
+        }
+
+        if (this.versionInfo) {
+            const parts = [];
+            if (this.versionInfo.version) {
+                parts.push(this.versionInfo.version);
+            }
+            if (this.versionInfo.git_commit && this.versionInfo.git_commit !== 'unknown') {
+                parts.push(this.versionInfo.git_commit.substring(0, 7));
+            }
+            if (this.versionInfo.build_time) {
+                try {
+                    const datePart = new Date(this.versionInfo.build_time).toISOString().split('T')[0];
+                    parts.push(datePart);
+                } catch (e) {
+                    // ignore parse error
+                }
+            }
+
+            badge.textContent = `${label}: ${parts.join(' · ') || '--'}`;
+            badge.classList.add('ok');
+            return;
+        }
+
+        badge.textContent = `${label}: --`;
+    }
+
+    async loadVersionInfo() {
+        this.versionLoadState = 'loading';
+        this.renderVersionBadge();
+
+        try {
+            const response = await fetch('/api/version');
+            if (!response.ok) {
+                throw new Error(`Version endpoint error: ${response.status}`);
+            }
+            const data = await response.json();
+            this.versionInfo = {
+                version: data.version || 'unknown',
+                git_commit: data.git_commit || 'unknown',
+                build_time: data.build_time || ''
+            };
+            this.versionLoadState = 'ok';
+        } catch (error) {
+            console.error('获取版本信息失败:', error);
+            this.versionLoadState = 'error';
+        } finally {
+            this.renderVersionBadge();
+        }
+    }
+
     updateGroupTexts() {
         this.updateElementText('manage-groups-text', this.t('groups.groups'));
         this.updateElementText('group-modal-title', this.t('groups.serverGroups'));
@@ -3154,7 +3231,7 @@ function updateDownloadCommands() {
         fileName = 'monitor-agent.exe';
     }
     
-    const baseUrl = 'https://release.serverstatus.ltd/';
+        const baseUrl = 'https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/';
     const downloadUrl = baseUrl + fileName;
     
     // 更新下载命令

@@ -18,6 +18,11 @@ type MockServerRepository struct {
 	mock.Mock
 }
 
+func (m *MockServerRepository) GetServersByProject(ctx context.Context, projectKey string, pagination *repository.Pagination) ([]*models.ServerInfo, error) {
+	args := m.Called(ctx, projectKey, pagination)
+	return args.Get(0).([]*models.ServerInfo), args.Error(1)
+}
+
 func (m *MockServerRepository) CreateServer(ctx context.Context, server *models.ServerInfo) error {
 	args := m.Called(ctx, server)
 	return args.Error(0)
@@ -106,6 +111,11 @@ func (m *MockHistoryRepository) GetHistoryCount(ctx context.Context, hostname, p
 func (m *MockHistoryRepository) GetAggregatedData(ctx context.Context, hostname, projectKey string, interval time.Duration, limit int) ([]*models.HistoryData, error) {
 	args := m.Called(ctx, hostname, projectKey, interval, limit)
 	return args.Get(0).([]*models.HistoryData), args.Error(1)
+}
+
+func (m *MockHistoryRepository) Ping() error {
+	args := m.Called()
+	return args.Error(0)
 }
 
 // MockCacheRepository 模拟缓存仓库
@@ -201,23 +211,32 @@ func TestServerService_RegisterServer(t *testing.T) {
 		SessionID:  "test-session-123",
 		Hostname:   "test-server",
 		ProjectKey: "test-project",
-		OS:         "Linux",
 		Timestamp:  time.Now(),
-		CPUInfo: models.CPUInfo{
-			Cores: 4,
+		OS: models.OSInfo{
+			Platform:     "Linux",
+			Architecture: "x86_64",
+			Hostname:     "test-server",
 		},
-		MemInfo: models.MemInfo{
+		CPU: models.CPUInfo{
+			CoreCount:    4,
+			UsagePercent: 12.3,
+		},
+		Memory: models.MemInfo{
 			Total: 8589934592, // 8GB
+			Used:  2147483648,
+			Free:  6442450944,
 		},
-		DiskInfo: models.DiskInfo{
+		Disk: models.DiskInfo{
 			Total: 107374182400, // 100GB
+			Used:  21474836480,
+			Free:  85900299520,
 		},
 	}
 
 	// 设置模拟期望
 	mockServerRepo.On("CreateServer", mock.Anything, mock.Anything).Return(nil)
 	mockHistoryRepo.On("SaveHistoryData", mock.Anything, mock.Anything).Return(nil)
-	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// 执行测试
 	err := service.RegisterServer(context.Background(), systemInfo)
@@ -313,13 +332,12 @@ func TestServerService_GetServer(t *testing.T) {
 	expectedServer := &models.ServerInfo{
 		SessionID: sessionID,
 		Hostname:  "test-server",
-		IsOnline:  true,
 	}
 
 	// 测试缓存未命中
-	mockCacheRepo.On("Get", mock.Anything, mock.Anything).Return(fmt.Errorf("cache miss"))
+	mockCacheRepo.On("Get", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("cache miss"))
 	mockServerRepo.On("GetServer", mock.Anything, sessionID).Return(expectedServer, nil)
-	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// 执行测试
 	result, err := service.GetServer(context.Background(), sessionID)
@@ -351,8 +369,8 @@ func TestServerService_GetServers(t *testing.T) {
 
 	// 准备测试数据
 	expectedServers := []*models.ServerInfo{
-		{SessionID: "test-1", Hostname: "server-1", IsOnline: true},
-		{SessionID: "test-2", Hostname: "server-2", IsOnline: true},
+		{SessionID: "test-1", Hostname: "server-1"},
+		{SessionID: "test-2", Hostname: "server-2"},
 	}
 
 	filter := &repository.ServerFilter{
@@ -396,16 +414,14 @@ func TestServerService_GetProjectStats(t *testing.T) {
 	// 准备测试数据
 	onlineServers := []*models.ServerInfo{
 		{
-			SessionID:  "test-1",
-			Hostname:   "server-1",
-			IsOnline:   true,
-			SystemInfo: &models.SystemInfo{CPUUsage: 50.0, MemInfo: models.MemInfo{UsagePercent: 60.0}, DiskInfo: models.DiskInfo{UsagePercent: 70.0}},
+			SessionID: "test-1",
+			Hostname:  "server-1",
+			Latest:    &models.SystemInfo{CPU: models.CPUInfo{UsagePercent: 50.0}, Memory: models.MemInfo{UsagePercent: 60.0}, Disk: models.DiskInfo{UsagePercent: 70.0}},
 		},
 		{
-			SessionID:  "test-2",
-			Hostname:   "server-2",
-			IsOnline:   true,
-			SystemInfo: &models.SystemInfo{CPUUsage: 30.0, MemInfo: models.MemInfo{UsagePercent: 40.0}, DiskInfo: models.DiskInfo{UsagePercent: 50.0}},
+			SessionID: "test-2",
+			Hostname:  "server-2",
+			Latest:    &models.SystemInfo{CPU: models.CPUInfo{UsagePercent: 30.0}, Memory: models.MemInfo{UsagePercent: 40.0}, Disk: models.DiskInfo{UsagePercent: 50.0}},
 		},
 	}
 
@@ -491,10 +507,10 @@ func TestCalculateAverageUsage(t *testing.T) {
 			name: "single server",
 			servers: []*models.ServerInfo{
 				{
-					SystemInfo: &models.SystemInfo{
-						CPUUsage: 50.0,
-						MemInfo:  models.MemInfo{UsagePercent: 60.0},
-						DiskInfo: models.DiskInfo{UsagePercent: 70.0},
+					Latest: &models.SystemInfo{
+						CPU:    models.CPUInfo{UsagePercent: 50.0},
+						Memory: models.MemInfo{UsagePercent: 60.0},
+						Disk:   models.DiskInfo{UsagePercent: 70.0},
 					},
 				},
 			},
@@ -506,17 +522,17 @@ func TestCalculateAverageUsage(t *testing.T) {
 			name: "multiple servers",
 			servers: []*models.ServerInfo{
 				{
-					SystemInfo: &models.SystemInfo{
-						CPUUsage: 50.0,
-						MemInfo:  models.MemInfo{UsagePercent: 60.0},
-						DiskInfo: models.DiskInfo{UsagePercent: 70.0},
+					Latest: &models.SystemInfo{
+						CPU:    models.CPUInfo{UsagePercent: 50.0},
+						Memory: models.MemInfo{UsagePercent: 60.0},
+						Disk:   models.DiskInfo{UsagePercent: 70.0},
 					},
 				},
 				{
-					SystemInfo: &models.SystemInfo{
-						CPUUsage: 30.0,
-						MemInfo:  models.MemInfo{UsagePercent: 40.0},
-						DiskInfo: models.DiskInfo{UsagePercent: 50.0},
+					Latest: &models.SystemInfo{
+						CPU:    models.CPUInfo{UsagePercent: 30.0},
+						Memory: models.MemInfo{UsagePercent: 40.0},
+						Disk:   models.DiskInfo{UsagePercent: 50.0},
 					},
 				},
 			},
@@ -559,23 +575,32 @@ func BenchmarkServerService_RegisterServer(b *testing.B) {
 		SessionID:  "test-session-123",
 		Hostname:   "test-server",
 		ProjectKey: "test-project",
-		OS:         "Linux",
 		Timestamp:  time.Now(),
-		CPUInfo: models.CPUInfo{
-			Cores: 4,
+		OS: models.OSInfo{
+			Platform:     "Linux",
+			Architecture: "x86_64",
+			Hostname:     "test-server",
 		},
-		MemInfo: models.MemInfo{
+		CPU: models.CPUInfo{
+			CoreCount:    4,
+			UsagePercent: 10,
+		},
+		Memory: models.MemInfo{
 			Total: 8589934592,
+			Used:  2147483648,
+			Free:  6442450944,
 		},
-		DiskInfo: models.DiskInfo{
+		Disk: models.DiskInfo{
 			Total: 107374182400,
+			Used:  21474836480,
+			Free:  85900299520,
 		},
 	}
 
 	// 设置模拟期望
 	mockServerRepo.On("CreateServer", mock.Anything, mock.Anything).Return(nil)
 	mockHistoryRepo.On("SaveHistoryData", mock.Anything, mock.Anything).Return(nil)
-	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockCacheRepo.On("Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

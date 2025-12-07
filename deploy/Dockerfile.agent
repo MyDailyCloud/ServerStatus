@@ -1,9 +1,9 @@
 # Monitor Agent Dockerfile
-FROM golang:latest AS builder
+FROM golang:1.25.5-alpine AS builder
 
 WORKDIR /build
 
-# 复制go模块文件
+# 复制根模块文件并预下载依赖（monitor-agent 使用根 go.mod）
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -12,7 +12,7 @@ COPY monitor-agent/ ./monitor-agent/
 
 # 构建
 WORKDIR /build/monitor-agent
-RUN CGO_ENABLED=0 GOOS=linux go build -o monitor-agent main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o monitor-agent .
 
 # 运行阶段
 FROM ubuntu:22.04

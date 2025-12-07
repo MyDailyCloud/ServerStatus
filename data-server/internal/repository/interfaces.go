@@ -44,6 +44,8 @@ type HistoryRepository interface {
 	SaveHistoryData(ctx context.Context, data *models.SystemInfo) error
 	GetHostHistory(ctx context.Context, hostname, projectKey string, limit int) ([]*models.HistoryData, error)
 	GetHistoryByTimeRange(ctx context.Context, hostname, projectKey string, start, end time.Time) ([]*models.HistoryData, error)
+	// 带分页的时间范围历史查询（返回数据与总数）
+	GetHistoryByTimeRangePaged(ctx context.Context, hostname, projectKey string, start, end time.Time, pagination *Pagination) ([]*models.HistoryData, int, error)
 
 	// 数据清理
 	CleanupOldData(ctx context.Context, before time.Time) error

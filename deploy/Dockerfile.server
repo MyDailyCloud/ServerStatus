@@ -1,18 +1,22 @@
 # Data Server Dockerfile
-FROM golang:latest AS builder
+FROM golang:1.25.5 AS builder
 
 WORKDIR /build
 
-# 复制go模块文件
-COPY go.mod go.sum ./
-RUN go mod download
+# go-sqlite3 需要 CGO，安装编译依赖（与运行时Ubuntu一致）
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
-# 复制源代码
+# 复制 data-server 模块文件并预下载依赖
+COPY data-server/go.mod data-server/go.sum ./data-server/
+RUN cd data-server && go mod download
+
+# 复制源码
 COPY data-server/ ./data-server/
 
 # 构建
 WORKDIR /build/data-server
-RUN CGO_ENABLED=0 GOOS=linux go build -o data-server main.go
+ENV CGO_ENABLED=1
+RUN go build -o data-server .
 
 # 运行阶段
 FROM ubuntu:22.04
@@ -26,10 +30,13 @@ COPY --from=builder /build/data-server/data-server .
 COPY --from=builder /build/data-server/API.md ./API.md
 COPY --from=builder /build/data-server/web-ui ./web-ui
 
+# 预创建运行期所需目录（数据库、日志、导出）
+RUN mkdir -p /app/data /app/logs /app/exports
+
 # 创建配置文件
 RUN echo '{\n\
-  "project_key": "test",\n\
-  "server_key": "test-secret",\n\
+  "project_key": "test-demo-01",\n\
+  "server_key": "test-secret-01",\n\
   "host": "0.0.0.0",\n\
   "port": "8080",\n\
   "require_auth": true,\n\

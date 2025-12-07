@@ -1,19 +1,22 @@
 services:
-  # Data Server - API服务器
+  # 生产最小化：1 个服务端 + 1 个 Agent，密钥从环境注入
   data-server:
     build:
-      context: .
-      dockerfile: Dockerfile.server
+      context: ..
+      dockerfile: deploy/Dockerfile.server
     container_name: serverstatus-server
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
     environment:
-      - SERVER_PORT=8080
-      - PROJECT_KEY=test
-      - SERVER_KEY=test-secret
+      - SERVER_PORT=${SERVER_PORT:-8080}
+      - PROJECT_KEY=${PROJECT_KEY:?PROJECT_KEY required}
+      - SERVER_KEY=${SERVER_KEY:?SERVER_KEY required}
     volumes:
-      - ./data-server/web-ui:/app/web-ui
-      - ./data-server/API.md:/app/API.md
+      - ../data-server/web-ui:/app/web-ui
+      - ../data-server/API.md:/app/API.md
+      - ../data:/app/data
+      - ../data-server/logs:/app/logs
+      - ../data-server/exports:/app/exports
     networks:
       - serverstatus
     healthcheck:
@@ -22,18 +25,17 @@ services:
       timeout: 5s
       retries: 3
 
-  # Monitor Agent - 监控客户端1
-  monitor-agent-1:
+  monitor-agent:
     build:
-      context: .
-      dockerfile: Dockerfile.agent
-    container_name: serverstatus-agent-1
-    hostname: test-server-1
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    container_name: serverstatus-agent
+    hostname: ${AGENT_HOSTNAME:-serverstatus-agent}
     environment:
-      - SERVER_URL=http://data-server:8080/api/data
-      - PROJECT_KEY=test
-      - SERVER_KEY=test-secret
-      - ENABLE_USER_RESOURCES=true
+      - SERVER_URL=${SERVER_URL:-http://data-server:8080/api/data}
+      - PROJECT_KEY=${PROJECT_KEY:?PROJECT_KEY required}
+      - SERVER_KEY=${SERVER_KEY:?SERVER_KEY required}
+      - ENABLE_USER_RESOURCES=${ENABLE_USER_RESOURCES:-false}
     depends_on:
       data-server:
         condition: service_healthy
@@ -41,40 +43,20 @@ services:
       - serverstatus
     restart: unless-stopped
 
-  # Monitor Agent - 监控客户端2
-  monitor-agent-2:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
-    container_name: serverstatus-agent-2
-    hostname: test-server-2
-    environment:
-      - SERVER_URL=http://data-server:8080/api/data
-      - PROJECT_KEY=test
-      - SERVER_KEY=test-secret
-      - ENABLE_USER_RESOURCES=true
-    depends_on:
-      data-server:
-        condition: service_healthy
-    networks:
-      - serverstatus
-    restart: unless-stopped
-
-  # 前端UI服务 (简化版，直接使用Python HTTP服务器)
+  # 可选：简单静态前端，生产可自行替换或移除
   frontend:
     image: python:3.9-slim
     container_name: serverstatus-frontend
     ports:
       - "8081:8000"
     volumes:
-      - ./frontend-ui:/app:ro
+      - ../frontend-ui:/app:ro
     working_dir: /app
     command: python -m http.server 8000
     networks:
       - serverstatus
     depends_on:
       - data-server
-
 
 networks:
   serverstatus:

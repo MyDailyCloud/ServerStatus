@@ -62,66 +62,46 @@ ServerStatus v2.x is an enterprise-grade lightweight server monitoring system de
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Cross-platform)
 
-### Method 1: Automated Installation Script (Recommended)
+### Method 1: Prebuilt binaries (fastest)
+- Platforms: Linux / Windows / macOS, x86_64 & ARM64 (M1/M2/M3, etc.)
+- Download from GitHub Releases:
+  - Server: `data-server-<os>-<arch>`
+  - Agent: `monitor-agent-<os>-<arch>`
 
+Example (Linux x86_64):
 ```bash
-# Download installation script
-curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/install.sh -o install.sh
-chmod +x install.sh
-
-# Install server (interactive)
-./install.sh server
-
-# Install monitoring client (interactive)
-./install.sh client
-```
-
-Script features:
-- Auto-detect platform and architecture
-- Download corresponding binaries
-- Generate configuration files
-- Optional system service registration
-
-### Method 2: Manual Installation
-
-**Server Deployment (Example: Linux x86_64)**
-
-```bash
-# Download server
 wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/data-server-linux-amd64
 chmod +x data-server-linux-amd64
-
-# Start server
-./data-server-linux-amd64 -key public -port 8080
+./data-server-linux-amd64 -config server-config.json
 ```
 
-**Monitoring Client Deployment (on monitored hosts)**
-
+### Method 2: Docker / Docker Compose (prebuilt images)
+From repo root:
 ```bash
-# Download client
-wget https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/monitor-agent-linux-amd64
-chmod +x monitor-agent-linux-amd64
-
-# Start client
-./monitor-agent-linux-amd64 -url http://<server-ip>:8080/api/data -key public
+docker compose -f deploy/docker-compose.yml up --build
 ```
+Defaults: server on `8080`, frontend on `8081`. First run auto-creates sample config and mounts `data/`, `data-server/logs`, `data-server/exports`.
 
-**Access Monitoring Dashboard**
-
-```
-http://<server-ip>:8080/?key=public
-```
-
-### Method 3: Docker/Docker Compose
-
+### Method 3: Build from source
 ```bash
-cd deploy
-docker-compose up -d
+cd data-server
+go mod download
+CGO_ENABLED=1 go build -o data-server .
 
-# Access dashboard
-http://localhost:8080/?key=public
+cd ../monitor-agent
+go mod download
+go build -o monitor-agent .
+```
+Install SQLite headers (`libsqlite3-dev` / `sqlite-devel`) so CGO works.
+
+### Method 4: Install script
+```bash
+curl -L https://github.com/MyDailyCloud/ServerStatus/releases/latest/download/install.sh -o install.sh
+chmod +x install.sh
+./install.sh server   # interactive server setup
+./install.sh client   # interactive agent setup
 ```
 
 ---
