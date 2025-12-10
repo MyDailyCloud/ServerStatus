@@ -5,49 +5,53 @@
 }
 
 :root {
-    /* Light theme colors */
-    --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --bg-card: rgba(255, 255, 255, 0.95);
-    --text-primary: #333;
-    --text-secondary: #666;
-    --text-muted: #999;
+    /* Light theme colors - 简洁明快 */
+    --bg-primary: #f4f6fb;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
     --border-color: #e5e7eb;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-    --shadow-hover: rgba(0, 0, 0, 0.15);
-    --accent-color: #667eea;
+    --shadow-color: rgba(15, 23, 42, 0.06);
+    --shadow-hover: rgba(15, 23, 42, 0.12);
+    --accent-color: #2563eb;
+    --accent-hover: #1d4ed8;
     --system-info-bg: #f8fafc;
     --system-info-border: #e2e8f0;
-    --command-bg: #1a1a1a;
-    --command-text: #00ff00;
-    --tips-bg: #f8f9fa;
-    --tips-border: #007bff;
+    --command-bg: #0b1220;
+    --command-text: #38bdf8;
+    --tips-bg: #f8fafc;
+    --tips-border: #2563eb;
+    --hover-bg: #eef2ff;
 }
 
 [data-theme="dark"] {
-    /* Dark theme colors */
-    --bg-primary: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    --bg-card: rgba(30, 41, 59, 0.95);
-    --text-primary: #f1f5f9;
+    /* Dark theme colors - 降低眩光 */
+    --bg-primary: #0b1020;
+    --bg-card: rgba(17, 24, 39, 0.95);
+    --text-primary: #e5e7eb;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
-    --border-color: #334155;
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --shadow-hover: rgba(0, 0, 0, 0.4);
-    --accent-color: #818cf8;
-    --system-info-bg: #1e293b;
-    --system-info-border: #334155;
-    --command-bg: #0f172a;
-    --command-text: #22c55e;
-    --tips-bg: #1e293b;
+    --border-color: #273143;
+    --shadow-color: rgba(0, 0, 0, 0.35);
+    --shadow-hover: rgba(0, 0, 0, 0.45);
+    --accent-color: #60a5fa;
+    --accent-hover: #3b82f6;
+    --system-info-bg: #0f172a;
+    --system-info-border: #1f2937;
+    --command-bg: #0b1220;
+    --command-text: #38bdf8;
+    --tips-bg: #0f172a;
     --tips-border: #3b82f6;
+    --hover-bg: #111827;
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--bg-primary);
     min-height: 100vh;
     color: var(--text-primary);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -58,14 +62,15 @@ body {
 
 header {
     background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 20px 30px;
-    margin-bottom: 30px;
-    box-shadow: 0 8px 32px var(--shadow-color);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 30px var(--shadow-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border: 1px solid var(--border-color);
 }
 
 .header-top {
@@ -1504,7 +1509,7 @@ header h1 {
 
 .servers-grid {
     display: grid;
-    gap: 20px;
+    gap: 16px;
     margin-bottom: 30px;
     transition: all 0.3s ease;
 }
@@ -1534,13 +1539,13 @@ header h1 {
 
 .server-card {
     background: var(--bg-card);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 6px 25px var(--shadow-color);
-    transition: all 0.3s ease;
+    padding: 18px;
+    box-shadow: 0 8px 20px var(--shadow-color);
+    transition: all 0.2s ease;
     cursor: pointer;
-    border: 2px solid transparent;
+    border: 1px solid var(--border-color);
     min-height: 200px;
     display: flex;
     flex-direction: column;
@@ -1560,8 +1565,8 @@ header h1 {
 }
 
 .server-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px var(--shadow-hover);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px var(--shadow-hover);
     border-color: var(--accent-color);
 }
 
@@ -1961,11 +1966,11 @@ header h1 {
 
 .tutorial-card {
     background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 8px 32px var(--shadow-color);
-    border: 2px solid var(--accent-color);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 8px 24px var(--shadow-color);
+    border: 1px solid var(--border-color);
 }
 
 .tutorial-card h2 {

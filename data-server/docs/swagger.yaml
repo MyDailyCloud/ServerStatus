@@ -1,0 +1,1012 @@
+basePath: /api
+definitions:
+  main.AccessKeyRequest:
+    properties:
+      project_key:
+        type: string
+      server_key:
+        type: string
+    type: object
+  main.AccessKeyResponse:
+    properties:
+      access_key:
+        type: string
+      message:
+        type: string
+      project_key:
+        type: string
+    type: object
+  main.AggregatedVisitorItem:
+    properties:
+      count:
+        type: integer
+      key:
+        type: string
+    type: object
+  main.AuthUser:
+    properties:
+      avatar_url:
+        type: string
+      config: {}
+      email:
+        type: string
+      id:
+        type: integer
+      login:
+        type: string
+      name:
+        type: string
+    type: object
+  main.CPUInfo:
+    properties:
+      core_count:
+        type: integer
+      model_name:
+        type: string
+      usage_percent:
+        type: number
+    type: object
+  main.DiskInfo:
+    properties:
+      free:
+        type: integer
+      total:
+        type: integer
+      usage_percent:
+        type: number
+      used:
+        type: integer
+    type: object
+  main.DomainBinding:
+    properties:
+      domain:
+        type: string
+      project_key:
+        type: string
+    type: object
+  main.GPUInfo:
+    properties:
+      memory_total:
+        type: integer
+      memory_used:
+        type: integer
+      name:
+        type: string
+      temperature:
+        type: number
+      usage_percent:
+        type: number
+    type: object
+  main.MemInfo:
+    properties:
+      free:
+        type: integer
+      total:
+        type: integer
+      usage_percent:
+        type: number
+      used:
+        type: integer
+    type: object
+  main.NetInfo:
+    properties:
+      bytes_recv:
+        description: 总接收字节数
+        type: integer
+      bytes_sent:
+        description: 总发送字节数
+        type: integer
+      interfaces:
+        description: 网卡详细信息
+        items:
+          $ref: '#/definitions/main.NetInterface'
+        type: array
+      packets_recv:
+        description: 总接收包数
+        type: integer
+      packets_sent:
+        description: 总发送包数
+        type: integer
+      speed_recv:
+        description: 接收速率 (KB/s)
+        type: number
+      speed_sent:
+        description: 发送速率 (KB/s)
+        type: number
+    type: object
+  main.NetInterface:
+    properties:
+      addrs:
+        description: IP地址列表
+        items:
+          type: string
+        type: array
+      bytes_recv:
+        description: 接收字节数
+        type: integer
+      bytes_sent:
+        description: 发送字节数
+        type: integer
+      is_up:
+        description: 网卡状态
+        type: boolean
+      mtu:
+        description: MTU
+        type: integer
+      name:
+        description: 网卡名称
+        type: string
+      packets_recv:
+        description: 接收包数
+        type: integer
+      packets_sent:
+        description: 发送包数
+        type: integer
+      speed_recv:
+        description: 接收速率 (KB/s)
+        type: number
+      speed_sent:
+        description: 发送速率 (KB/s)
+        type: number
+    type: object
+  main.OSInfo:
+    properties:
+      arch:
+        description: 兼容旧字段
+        type: string
+      architecture:
+        description: 规范字段
+        type: string
+      platform:
+        type: string
+      uptime:
+        type: integer
+      version:
+        type: string
+    type: object
+  main.ProcessInfo:
+    properties:
+      cmdline:
+        type: string
+      cpu_percent:
+        type: number
+      memory_mb:
+        type: integer
+      memory_percent:
+        type: number
+      name:
+        type: string
+      pid:
+        type: integer
+      status:
+        type: string
+      username:
+        type: string
+    type: object
+  main.ServerInfo:
+    properties:
+      history:
+        items:
+          $ref: '#/definitions/main.SystemInfo'
+        type: array
+      last_seen:
+        type: string
+      latest:
+        $ref: '#/definitions/main.SystemInfo'
+    type: object
+  main.ServerStatus:
+    properties:
+      cpu_percent:
+        type: number
+      cpu_temp:
+        type: number
+      disk_percent:
+        type: number
+      gpu_temp:
+        description: 保持兼容性，主GPU温度
+        type: number
+      gpus:
+        description: 所有GPU信息
+        items:
+          $ref: '#/definitions/main.GPUInfo'
+        type: array
+      hostname:
+        type: string
+      last_seen:
+        type: string
+      max_temp:
+        type: number
+      memory_percent:
+        type: number
+      network_bytes_recv:
+        description: 总接收字节数
+        type: integer
+      network_bytes_sent:
+        description: 总发送字节数
+        type: integer
+      network_speed_recv:
+        description: 网络接收速率 (KB/s)
+        type: number
+      network_speed_sent:
+        description: 网络发送速率 (KB/s)
+        type: number
+      os:
+        type: string
+      session_id:
+        description: UUID session标识
+        type: string
+      status:
+        type: string
+      user_resources:
+        description: 用户资源使用信息
+        items:
+          $ref: '#/definitions/main.UserResourceInfo'
+        type: array
+    type: object
+  main.SessionRegisterRequest:
+    properties:
+      hostname:
+        type: string
+      project_key:
+        type: string
+    type: object
+  main.SessionRegisterResponse:
+    properties:
+      hostname:
+        type: string
+      session_id:
+        type: string
+    type: object
+  main.SystemInfo:
+    properties:
+      cpu:
+        $ref: '#/definitions/main.CPUInfo'
+      disk:
+        $ref: '#/definitions/main.DiskInfo'
+      gpu:
+        allOf:
+        - $ref: '#/definitions/main.GPUInfo'
+        description: 保持兼容性，主GPU信息
+      gpus:
+        description: 所有GPU信息
+        items:
+          $ref: '#/definitions/main.GPUInfo'
+        type: array
+      hostname:
+        type: string
+      memory:
+        $ref: '#/definitions/main.MemInfo'
+      network:
+        $ref: '#/definitions/main.NetInfo'
+      os:
+        $ref: '#/definitions/main.OSInfo'
+      project_key:
+        type: string
+      session_id:
+        description: UUID session标识
+        type: string
+      temperature:
+        $ref: '#/definitions/main.TempInfo'
+      timestamp:
+        type: string
+      user_resources:
+        description: 用户资源使用信息
+        items:
+          $ref: '#/definitions/main.UserResourceInfo'
+        type: array
+    type: object
+  main.TempInfo:
+    properties:
+      avg_temp:
+        type: number
+      cpu_temp:
+        type: number
+      gpu_temp:
+        type: number
+      max_temp:
+        type: number
+      sensors:
+        additionalProperties:
+          type: number
+        type: object
+    type: object
+  main.UserResourceInfo:
+    properties:
+      cpu_percent:
+        type: number
+      memory_mb:
+        type: integer
+      memory_percent:
+        type: number
+      process_count:
+        type: integer
+      top_processes:
+        items:
+          $ref: '#/definitions/main.ProcessInfo'
+        type: array
+      uid:
+        type: integer
+      username:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: ServerStatus 监控 API 文档
+  title: ServerStatus API
+  version: "1.0"
+paths:
+  /access/{accessKey}/server-by-session/{sessionID}:
+    get:
+      parameters:
+      - description: 访问密钥
+        in: path
+        name: accessKey
+        required: true
+        type: string
+      - description: Session ID
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ServerInfo'
+        "401":
+          description: 无效的访问密钥
+          schema:
+            type: string
+        "404":
+          description: 服务器不存在
+          schema:
+            type: string
+      summary: 使用访问密钥+SessionID 获取服务器详情
+      tags:
+      - access
+  /access/{accessKey}/servers:
+    get:
+      parameters:
+      - description: 访问密钥
+        in: path
+        name: accessKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.ServerStatus'
+            type: array
+        "401":
+          description: 无效的访问密钥
+          schema:
+            type: string
+      summary: 使用访问密钥获取服务器列表
+      tags:
+      - access
+  /access/{accessKey}/user-resources/{sessionID}:
+    get:
+      parameters:
+      - description: 访问密钥
+        in: path
+        name: accessKey
+        required: true
+        type: string
+      - description: SessionID
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.UserResourceInfo'
+            type: array
+        "401":
+          description: 无效的访问密钥
+          schema:
+            type: string
+        "404":
+          description: 服务器不存在或没有数据
+          schema:
+            type: string
+      summary: 使用访问密钥获取用户资源数据
+      tags:
+      - access
+  /auth/github/callback:
+    get:
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: 登录成功跳转
+          schema:
+            type: string
+        "400":
+          description: state 或 code 无效
+          schema:
+            type: string
+        "502":
+          description: GitHub 认证失败
+          schema:
+            type: string
+      summary: GitHub OAuth 回调
+      tags:
+      - auth
+  /auth/github/login:
+    get:
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: 跳转至 GitHub
+          schema:
+            type: string
+        "503":
+          description: 未配置 GitHub OAuth
+          schema:
+            type: string
+      summary: GitHub OAuth 登录跳转
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: 退出成功
+          schema:
+            type: string
+      summary: 登出
+      tags:
+      - auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AuthUser'
+        "401":
+          description: 未登录
+          schema:
+            type: string
+        "503":
+          description: 数据库未初始化
+          schema:
+            type: string
+      summary: 获取当前登录用户
+      tags:
+      - auth
+  /cache-stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: 缓存未启用
+          schema:
+            type: string
+      summary: 获取缓存统计信息
+      tags:
+      - cache
+  /data:
+    post:
+      consumes:
+      - application/json
+      description: 监控代理上报系统信息，支持双密钥校验
+      parameters:
+      - description: 项目密钥（默认 public）
+        in: header
+        name: X-Project-Key
+        type: string
+      - description: 服务器密钥（RequireAuth=true 时需要）
+        in: header
+        name: X-Server-Key
+        type: string
+      - description: 系统信息
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.SystemInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: 解析数据失败
+          schema:
+            type: string
+        "401":
+          description: 无效的服务器密钥
+          schema:
+            type: string
+        "500":
+          description: 数据保存失败
+          schema:
+            type: string
+      summary: 上报监控数据
+      tags:
+      - data
+  /deploy/agent-command:
+    get:
+      parameters:
+      - description: 数据上报基址，默认 https://serverstatus.ltd
+        in: query
+        name: base_url
+        type: string
+      - description: 是否开启用户资源采集，默认false
+        in: query
+        name: user_resources
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取一键运行客户端的命令与示例.env
+      tags:
+      - deploy
+  /export/history:
+    get:
+      parameters:
+      - description: SessionID
+        in: query
+        name: session_id
+        required: true
+        type: string
+      - description: 项目密钥
+        in: query
+        name: project_key
+        type: string
+      - description: 最多返回条数，默认DataLimit
+        in: query
+        name: limit
+        type: integer
+      - description: 回溯小时数，默认24
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: 缺少session_id
+          schema:
+            type: string
+      summary: 导出服务器历史数据为CSV
+      tags:
+      - export
+  /export/servers:
+    get:
+      parameters:
+      - description: 项目密钥
+        in: query
+        name: project_key
+        type: string
+      - description: 访问密钥（用于换取项目密钥）
+        in: query
+        name: access_key
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: 导出服务器列表为CSV
+      tags:
+      - export
+  /export/user-resources:
+    get:
+      parameters:
+      - description: SessionID
+        in: query
+        name: session_id
+        required: true
+        type: string
+      - description: 项目密钥
+        in: query
+        name: project_key
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: 缺少session_id
+          schema:
+            type: string
+      summary: 导出指定服务器的用户资源为CSV
+      tags:
+      - export
+  /generate-access-key:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 双密钥
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.AccessKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessKeyResponse'
+        "400":
+          description: 无效的请求格式
+          schema:
+            type: string
+        "401":
+          description: 无效的服务器密钥或项目密钥
+          schema:
+            type: string
+      summary: 生成访问密钥
+      tags:
+      - access
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 健康检查
+      tags:
+      - system
+  /register-session:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 主机与项目
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.SessionRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SessionRegisterResponse'
+        "400":
+          description: 参数错误
+          schema:
+            type: string
+        "401":
+          description: 项目密钥验证失败
+          schema:
+            type: string
+      summary: 注册新的 Session
+      tags:
+      - session
+  /reload-config:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 重载失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 配置热重载
+      tags:
+      - config
+  /server/{sessionID}:
+    get:
+      parameters:
+      - description: SessionID
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ServerInfo'
+        "404":
+          description: 服务器不存在
+          schema:
+            type: string
+      summary: 获取指定服务器详情
+      tags:
+      - server
+  /servers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.ServerStatus'
+            type: array
+      summary: 获取服务器列表
+      tags:
+      - server
+  /stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 系统统计信息
+      tags:
+      - system
+  /user-resources/{sessionID}:
+    get:
+      parameters:
+      - description: SessionID
+        in: path
+        name: sessionID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.UserResourceInfo'
+            type: array
+        "404":
+          description: 服务器不存在或没有数据
+          schema:
+            type: string
+      summary: 获取指定服务器的用户资源使用情况
+      tags:
+      - user_resources
+  /uuid-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取UUID数量统计
+      tags:
+      - stats
+  /version:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 版本信息
+      tags:
+      - system
+  /visitor/aggregate:
+    get:
+      parameters:
+      - description: page|referrer|domain|ua
+        in: query
+        name: group_by
+        required: true
+        type: string
+      - description: 项目密钥
+        in: query
+        name: project_key
+        type: string
+      - description: 最近小时数，默认24
+        in: query
+        name: hours
+        type: integer
+      - description: 返回条数，默认20
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.AggregatedVisitorItem'
+            type: array
+        "400":
+          description: 缺少 group_by
+          schema:
+            type: string
+        "503":
+          description: 数据库未初始化
+          schema:
+            type: string
+      summary: 访客分组聚合
+      tags:
+      - visitor
+  /visitor/bindings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.DomainBinding'
+            type: array
+        "401":
+          description: 需要登录
+          schema:
+            type: string
+        "503":
+          description: 数据库未初始化
+          schema:
+            type: string
+      summary: 列出域名绑定
+      tags:
+      - visitor
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 域名绑定
+        in: body
+        name: binding
+        required: true
+        schema:
+          $ref: '#/definitions/main.DomainBinding'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            type: string
+        "401":
+          description: 需要登录
+          schema:
+            type: string
+        "503":
+          description: 数据库未初始化
+          schema:
+            type: string
+      summary: 新增或更新域名绑定
+      tags:
+      - visitor
+  /visitor/stats:
+    get:
+      parameters:
+      - description: 项目密钥
+        in: query
+        name: project_key
+        type: string
+      - description: 最近小时数，默认24
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 需要登录
+          schema:
+            type: string
+        "503":
+          description: 数据库未初始化
+          schema:
+            type: string
+      summary: 获取访客统计
+      tags:
+      - visitor
+  /visitor/track:
+    get:
+      parameters:
+      - description: 页面URL
+        in: query
+        name: page
+        type: string
+      - description: 来源URL
+        in: query
+        name: referrer
+        type: string
+      - description: 项目密钥，空则自动推断或使用默认
+        in: query
+        name: project_key
+        type: string
+      - description: 会话ID
+        in: query
+        name: session_id
+        type: string
+      produces:
+      - image/gif
+      responses: {}
+      summary: 访客埋点上报
+      tags:
+      - visitor
+  /ws-stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: WebSocket未启用
+          schema:
+            type: string
+      summary: 获取WebSocket连接统计信息
+      tags:
+      - websocket
+swagger: "2.0"

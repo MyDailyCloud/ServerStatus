@@ -247,6 +247,46 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Visitor Analytics -->
+            <div class="stats-panel" id="visitor-panel">
+                <div class="stats-header">
+                    <h3 id="visitor-title">Visitor Analytics</h3>
+                    <div class="visitor-controls">
+                        <label for="visitor-hours">Range:</label>
+                        <select id="visitor-hours">
+                            <option value="24">24h</option>
+                            <option value="72">72h</option>
+                            <option value="168">7d</option>
+                            <option value="720">30d</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label" id="visitor-total-label">Visits</div>
+                        <div class="stat-value" id="visitor-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="visitor-unique-label">Unique IPs</div>
+                        <div class="stat-value" id="visitor-unique">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" id="visitor-project-label">Project/Domain</div>
+                        <div class="stat-value" id="visitor-project">serverstatus.ltd</div>
+                    </div>
+                </div>
+                <div class="charts-grid visitor-charts">
+                    <div class="chart-container">
+                        <h3 id="visitor-pages-title">Top Pages</h3>
+                        <canvas id="visitor-pages-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3 id="visitor-referrers-title">Top Referrers</h3>
+                        <canvas id="visitor-referrers-chart"></canvas>
+                    </div>
+                </div>
+            </div>
             
             <div class="servers-grid auto" id="servers-grid">
                 <!-- Server cards will be dynamically generated -->

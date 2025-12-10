@@ -55,8 +55,8 @@ ServerStatus 系统新增了用户资源监控功能，可以收集和展示服�
 Data Server 会自动处理和存储用户资源数据，无需额外配置。
 
 新增的API端点：
-- `GET /api/user-resources/{hostname}` - 获取指定服务器的用户资源数据
-- `GET /api/access/{accessKey}/user-resources/{hostname}` - 带访问密钥的用户资源访问
+- `GET /api/user-resources/{sessionID}` - 获取指定服务器的用户资源数据
+- `GET /api/access/{accessKey}/user-resources/{sessionID}` - 带访问密钥的用户资源访问
 
 ### 3. 前端展示
 

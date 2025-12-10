@@ -218,15 +218,6 @@ curl http://localhost:8080/api/servers
 
 **Response:** ServerStatus 数组
 
-#### GET /api/access/{accessKey}/server/{hostname}
-使用访问密钥获取特定服务器详情。
-
-**Parameters:**
-- `accessKey` - 访问密钥
-- `hostname` - 服务器主机名
-
-**Response:** ServerInfo 对象
-
 #### GET /api/access/{accessKey}/server-by-session/{sessionID}
 使用访问密钥和sessionID获取特定服务器详情。
 
@@ -251,6 +242,120 @@ curl http://localhost:8080/api/servers
   "description": "使用我们服务的设备统计"
 }
 ```
+
+#### GET /api/visitor/track
+用于网页埋点的轻量追踪像素接口，可直接放入`<img>`或`fetch`调用。
+
+**Query 参数:**
+- `project_key` (可选) - 默认 `public`
+- `page` (可选) - 当前页面URL，默认使用请求 Referer
+- `referrer` (可选) - 上一个页面地址，默认使用请求 Referer
+- `session_id`/`sid` (可选) - 自定义会话标识
+
+**Response:**
+- `200 OK` 返回 1x1 透明 GIF，不缓存
+
+**示例:**
+```html
+<img src="https://your-server/api/visitor/track?project_key=demo&page=/home" style="display:none" />
+```
+
+#### GET /api/visitor/stats
+获取访客统计数据，适合在管理端查看。
+
+**Query 参数:**
+- `project_key` (可选) - 默认 `public`
+- `hours` (可选) - 统计最近多少小时的数据，默认24，最大720
+
+**Response:**
+```json
+{
+  "project_key": "demo",
+  "from": "2024-01-01T00:00:00Z",
+  "to": "2024-01-02T00:00:00Z",
+  "total_visits": 1234,
+  "unique_ips": 456,
+  "daily": [
+    {"date": "2024-01-01", "count": 234},
+    {"date": "2024-01-02", "count": 1000}
+  ],
+  "top_pages": [
+    {"page": "/home", "count": 600},
+    {"page": "/docs", "count": 200}
+  ]
+}
+```
+
+#### GET /api/visitor/aggregate
+获取访客分组聚合数据。
+
+**Query 参数:**
+- `group_by` (必填) - `page` | `referrer` | `domain` | `ua`
+- `project_key` (可选) - 默认 `serverstatus.ltd`
+- `hours` (可选) - 最近小时数，默认24，最大720
+- `limit` (可选) - 返回条数，默认20，最大100
+
+**Response:**
+```json
+[
+  {"key": "/home", "count": 120},
+  {"key": "/docs", "count": 35}
+]
+```
+
+#### GET /api/visitor/bindings
+列出域名与 project_key 绑定关系。
+
+**Response:**
+```json
+[
+  {"domain": "example.com", "project_key": "example-project"}
+]
+```
+
+#### POST /api/visitor/bindings
+新增或更新域名绑定，便于自动按域名归桶。
+
+**Request Body:**
+```json
+{
+  "domain": "example.com",
+  "project_key": "example-project"
+}
+```
+
+**Response:**
+```json
+{"message": "ok"}
+```
+
+### 7. 身份认证（GitHub OAuth）
+
+> 环境变量：`GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET`、`GITHUB_CALLBACK_URL`（可选，默认 `http://<host>:<port>/api/auth/github/callback`）
+
+#### GET /api/auth/github/login
+跳转 GitHub 登录页。
+
+#### GET /api/auth/github/callback
+GitHub 回调，成功后发放会话 Cookie 并 302 到 `/`。
+
+#### GET /api/auth/me
+返回当前登录用户。
+
+**Response:**
+```json
+{
+  "id": 1,
+  "login": "octocat",
+  "name": "The Octocat",
+  "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
+  "email": "octocat@github.com",
+  "config": {}
+}
+```
+
+#### POST /api/auth/logout
+登出并清理会话。
 
 ### 6. 文件下载
 

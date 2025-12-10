@@ -68,3 +68,4 @@ docker-test.sh
 *.db
 data/
 data-server/data/
+/data

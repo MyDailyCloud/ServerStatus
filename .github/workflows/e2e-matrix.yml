@@ -1,0 +1,204 @@
+name: e2e-matrix
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.db != 'sqlite' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres, mariadb]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: ssuser
+          POSTGRES_PASSWORD: sspass
+          POSTGRES_DB: serverstatus
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U ssuser -d serverstatus"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+        # 仅在 postgres 任务需要，其他任务可忽略
+        if: matrix.db == 'postgres'
+
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: serverstatus
+          MARIADB_USER: ssuser
+          MARIADB_PASSWORD: sspass
+          MARIADB_ROOT_PASSWORD: rootpass
+        ports: [ "3306:3306" ]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u ssuser --password=sspass"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+        if: matrix.db == 'mariadb'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+      - name: Wait for DB (if needed)
+        if: matrix.db != 'sqlite'
+        run: |
+          if [ "${{ matrix.db }}" = "postgres" ]; then
+            for i in {1..30}; do
+              if pg_isready -h 127.0.0.1 -p 5432 -U ssuser -d serverstatus; then exit 0; fi
+              sleep 2
+            done
+            exit 1
+          fi
+          if [ "${{ matrix.db }}" = "mariadb" ]; then
+            for i in {1..30}; do
+              if mysqladmin ping -h 127.0.0.1 -u ssuser --password=sspass --silent; then exit 0; fi
+              sleep 2
+            done
+            exit 1
+          fi
+
+      - name: Generate config
+        working-directory: data-server
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          cat > server-config.json <<'EOF'
+          {
+            "project_key": "public",
+            "server_key": "serverstatus.ltd",
+            "host": "0.0.0.0",
+            "port": "8080",
+            "require_auth": false,
+            "data_limit": 1000,
+            "data_interval": 5,
+            "enable_compression": true,
+            "compression_level": 6,
+            "enable_websocket": true,
+            "enable_cache": false,
+            "database_driver": "sqlite",
+            "database_path": "./data/serverstatus.db",
+            "database_connections": []
+          }
+          EOF
+
+          if [ "$DB" = "postgres" ]; then
+            cat > server-config.json <<'EOF'
+            {
+              "project_key": "public",
+              "server_key": "serverstatus.ltd",
+              "host": "0.0.0.0",
+              "port": "8080",
+              "require_auth": false,
+              "data_limit": 1000,
+              "data_interval": 5,
+              "enable_compression": true,
+              "compression_level": 6,
+              "enable_websocket": true,
+              "enable_cache": false,
+              "database_driver": "postgres",
+              "database_connections": [
+                { "driver": "postgres", "path": "postgres://ssuser:sspass@127.0.0.1:5432/serverstatus?sslmode=disable" }
+              ]
+            }
+            EOF
+          fi
+
+          if [ "$DB" = "mariadb" ]; then
+            cat > server-config.json <<'EOF'
+            {
+              "project_key": "public",
+              "server_key": "serverstatus.ltd",
+              "host": "0.0.0.0",
+              "port": "8080",
+              "require_auth": false,
+              "data_limit": 1000,
+              "data_interval": 5,
+              "enable_compression": true,
+              "compression_level": 6,
+              "enable_websocket": true,
+              "enable_cache": false,
+              "database_driver": "mysql",
+              "database_connections": [
+                { "driver": "mysql", "path": "ssuser:sspass@tcp(127.0.0.1:3306)/serverstatus?parseTime=true" }
+              ]
+            }
+            EOF
+          fi
+
+          mkdir -p data
+
+      - name: Go test (unit + integration)
+        working-directory: data-server
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          go test ./... -count=1
+
+      - name: Build binary
+        working-directory: data-server
+        run: |
+          go build -o data-server .
+
+      - name: Start server (background)
+        working-directory: data-server
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          ./data-server -config server-config.json > ../server.log 2>&1 &
+          echo $! > ../server.pid
+          sleep 3
+
+      - name: Smoke E2E
+        env:
+          DB: ${{ matrix.db }}
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/health | grep -q "200"
+          curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/version | grep -q "200"
+
+      - name: Cleanup server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.db }}
+          path: |
+            server.log
+            data-server/server-config.json
+

@@ -329,7 +329,7 @@ sudo systemctl start serverstatus
 GET /api/servers
 
 # 获取服务器详情
-GET /api/server/{hostname}
+GET /api/server/{sessionID}
 
 # 获取设备统计
 GET /api/uuid-count

@@ -37,6 +37,8 @@ ServerStatus v2.x is an enterprise-grade lightweight server monitoring system de
 - Dual-key authentication system (ServerKey + ProjectKey)
 - SQLite historical data storage
 - CSV/JSON data export
+- Visitor analytics: 1x1 pixel tracking, domain auto-bucket, aggregation APIs
+- GitHub OAuth login: GitHub account-based session with per-user config
 
 **Cross-platform and Deployment**
 - Supports Linux, Windows, macOS (x86_64/ARM64)
@@ -105,6 +107,45 @@ chmod +x install.sh
 ```
 
 ---
+
+## 📈 Visitor Analytics (Web Tracking)
+
+- **Drop-in embed**:  
+  ```html
+  <script>
+  (() => {
+    const ep = 'https://serverstatus.ltd/api/visitor/track';
+    const params = new URLSearchParams({
+      project_key: location.hostname || 'serverstatus.ltd',
+      page: location.href,
+      referrer: document.referrer || ''
+    });
+    const img = new Image();
+    img.src = `${ep}?${params.toString()}`;
+  })();
+  </script>
+  ```
+  无需认证，自动按域名归桶；后端若存在域名绑定会映射到对应 project_key，默认归 `serverstatus.ltd`。
+
+- **Stats API**: `GET /api/visitor/stats?project_key=serverstatus.ltd&hours=24`
+  - 返回总访问、独立 IP、按日趋势、热门页面。
+
+- **Aggregate API**: `GET /api/visitor/aggregate?group_by=referrer&hours=168&limit=20`
+  - 支持 `group_by=page|referrer|domain|ua`，可做多模态分析。
+
+- **Domain binding**: `POST /api/visitor/bindings` `{ "domain": "example.com", "project_key": "example-project" }`
+  - 绑定后无需前端传参，自动按域名归类。
+
+- **UI**: 内置前端面板已增加 Visitor Analytics 卡片（Top Pages / Top Referrers、可选时间范围）。
+
+## 🔐 GitHub Login (OAuth)
+- Env: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, optional `GITHUB_CALLBACK_URL` (default `http://<host>:<port>/api/auth/github/callback`).
+- Endpoints:  
+  - `GET /api/auth/github/login` → redirect to GitHub  
+  - `GET /api/auth/github/callback` → issue session cookie & redirect `/`  
+  - `GET /api/auth/me` → current user with stored config  
+  - `POST /api/auth/logout`
+- 登录即自动创建用户与配置记录（存 SQLite `users` / `sessions` / `user_configs`）。 
 
 ## 🏗️ Architecture Design and Progress
 

@@ -9,6 +9,9 @@ class GPUMonitor {
         this.apiEndpoint = this.apiBaseUrl + '/api/servers'; // API端点
         this.accessKey = CONFIG.ACCESS_KEY;
         this.projectKey = null;
+        this.ws = null;
+        this.wsConnected = false;
+        this.wsReconnectTimer = null;
         this.language = this.detectLanguage();
         this.currentTheme = localStorage.getItem('preferred-theme') || CONFIG.DEFAULT_THEME;
         this.filteredServers = [];
@@ -66,6 +69,8 @@ class GPUMonitor {
         setTimeout(() => {
             this.applyLanguage();
         }, 100);
+        // 启动 WebSocket，失败时会自动回退 HTTP 轮询
+        this.startWebSocket();
         this.startPolling();
         this.loadInitialData();
         this.initializeTutorial();
@@ -74,8 +79,17 @@ class GPUMonitor {
     initializeTutorial() {
         // 如果有URL参数（访问密钥模式），隐藏教程
         const tutorialSection = document.getElementById('tutorial-section');
-        if (this.accessKey && tutorialSection) {
-            tutorialSection.style.display = 'none';
+        if (tutorialSection) {
+            if (this.accessKey) {
+                tutorialSection.style.display = 'none';
+            } else {
+                tutorialSection.classList.add('collapsed');
+                const toggleBtn = document.getElementById('toggle-tutorial-btn');
+                if (toggleBtn) {
+                    const t = this.getTranslations()[this.language]?.tutorial;
+                    toggleBtn.textContent = t?.showTutorial || 'Show Tutorial';
+                }
+            }
         }
         
         // 根据语言更新教程内容
@@ -2758,6 +2772,7 @@ class GPUMonitor {
     }
 
     startPolling() {
+        if (this.pollInterval) return;
         console.log('开始HTTP轮询数据更新');
         this.updateConnectionStatus(true);
         
@@ -2775,8 +2790,69 @@ class GPUMonitor {
             clearInterval(this.pollInterval);
             this.pollInterval = null;
             console.log('停止HTTP轮询');
-            this.updateConnectionStatus(false);
         }
+    }
+
+    buildWebSocketUrl() {
+        const base = this.apiBaseUrl.replace(/^http/, 'ws');
+        const pk = encodeURIComponent(this.projectKey || 'public');
+        return `${base}/ws?project_key=${pk}`;
+    }
+
+    startWebSocket() {
+        const url = this.buildWebSocketUrl();
+        try {
+            console.log('尝试建立 WebSocket 连接:', url);
+            this.ws = new WebSocket(url);
+        } catch (err) {
+            console.error('WebSocket 创建失败，回退轮询:', err);
+            this.ws = null;
+            this.scheduleWsReconnect();
+            this.startPolling();
+            return;
+        }
+
+        this.ws.onopen = () => {
+            console.log('WebSocket 已连接');
+            this.wsConnected = true;
+            this.updateConnectionStatus(true);
+        };
+
+        this.ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'server_update' && msg.data && msg.data.server_status) {
+                    this.updateServers([msg.data.server_status]);
+                    this.updateConnectionStatus(true);
+                } else if (msg.type === 'heartbeat') {
+                    this.updateConnectionStatus(true);
+                }
+            } catch (err) {
+                console.error('解析 WebSocket 消息失败:', err, event.data);
+            }
+        };
+
+        this.ws.onerror = (err) => {
+            console.error('WebSocket 错误:', err);
+            this.wsConnected = false;
+            this.updateConnectionStatus(false);
+        };
+
+        this.ws.onclose = () => {
+            console.warn('WebSocket 连接关闭，回退到 HTTP 轮询');
+            this.wsConnected = false;
+            this.updateConnectionStatus(false);
+            this.startPolling();
+            this.scheduleWsReconnect();
+        };
+    }
+
+    scheduleWsReconnect() {
+        if (this.wsReconnectTimer) return;
+        this.wsReconnectTimer = setTimeout(() => {
+            this.wsReconnectTimer = null;
+            this.startWebSocket();
+        }, 3000);
     }
 
     async pollServers() {
@@ -2900,26 +2976,30 @@ class GPUMonitor {
     }
 
     updateServers(serversData) {
-        // 更新服务器数据
+        // 合并/更新服务器数据
         serversData.forEach(server => {
-            // 检查告警
             const alerts = this.checkServerAlerts(server);
             alerts.forEach(alert => this.addAlert(alert));
-            
-            this.servers.set(server.hostname, server);
+            const key = server.session_id || `${server.hostname}-${server.project_key || 'public'}`;
+            this.servers.set(key, server);
         });
 
-        // 更新服务器计数
-        document.getElementById('server-count').textContent = `${serversData.length}${this.t('serverCount')}`;
-        
+        // 使用合并后的全量集合做统计与渲染
+        const allServers = Array.from(this.servers.values());
+        const onlineCount = allServers.filter(s => s.status === 'online').length;
+        const offlineCount = allServers.length - onlineCount;
+        document.getElementById('server-count').textContent = `${allServers.length}${this.t('serverCount')}`;
+        document.getElementById('online-count').textContent = `${onlineCount} online`;
+        document.getElementById('offline-count').textContent = `${offlineCount} offline`;
+
         // 更新性能统计
-        this.updatePerformanceStats(serversData);
-        
+        this.updatePerformanceStats(allServers);
+
         // 加载UUID统计
         this.loadUUIDCount();
 
         // 渲染服务器卡片
-        this.renderServerCards(serversData);
+        this.renderServerCards(allServers);
 
         // 如果有选中的服务器，更新其图表
         if (this.selectedServer) {
@@ -2944,8 +3024,9 @@ class GPUMonitor {
         const groupId = this.serverGroups.get(server.hostname);
         const group = groupId ? this.groups.get(groupId) : null;
         
+        const cardKey = server.session_id || `${server.hostname}-${server.project_key || 'public'}`;
         return `
-            <div class="server-card ${server.status} ${group ? 'grouped' : ''}" data-hostname="${server.hostname}" data-session="${server.session_id || ''}" ${group ? `style="--group-color: ${group.color}; --group-color-light: ${group.color}08;"` : ''}>
+            <div class="server-card ${server.status} ${group ? 'grouped' : ''}" data-key="${cardKey}" data-hostname="${server.hostname}" data-session="${server.session_id || ''}" ${group ? `style="--group-color: ${group.color}; --group-color-light: ${group.color}08;"` : ''}>
                 ${group ? `<div class="group-indicator" style="background-color: ${group.color}" title="${group.name}"></div>` : ''}
                 <div class="server-header">
                     <div class="server-name">
@@ -3071,15 +3152,15 @@ class GPUMonitor {
     async loadServerDetails(hostname, sessionId) {
         try {
             let url;
-            if (this.accessKey && sessionId) {
-                // 如果有accessKey和sessionId，使用session-based API
-                url = `${this.apiBaseUrl}/api/access/${this.accessKey}/server-by-session/${sessionId}`;
-            } else if (this.accessKey) {
-                // 如果只有accessKey，使用hostname-based API
-                url = `${this.apiBaseUrl}/api/access/${this.accessKey}/server/${hostname}`;
+            if (sessionId) {
+                if (this.accessKey) {
+                    url = `${this.apiBaseUrl}/api/access/${this.accessKey}/server-by-session/${sessionId}`;
+                } else {
+                    url = `${this.apiBaseUrl}/api/server/${sessionId}`;
+                }
             } else {
-                // 默认API
-                url = `${this.apiBaseUrl}/api/server/${hostname}`;
+                console.warn('缺少 sessionId，无法获取服务器详情');
+                return;
             }
             
             const response = await fetch(url);

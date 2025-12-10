@@ -37,6 +37,8 @@ ServerStatus v2.x 是一个企业级的轻量化服务器监控系统，采用 G
 - 双密钥认证系统（ServerKey + ProjectKey）
 - SQLite 历史数据存储
 - CSV/JSON 数据导出
+- 访客分析：1x1 像素埋点、域名自动归桶、聚合分析 API
+- GitHub OAuth 登录：基于 GitHub 账户的会话与用户配置
 
 **跨平台与部署**
 - 支持 Linux、Windows、macOS（x86_64/ARM64）
@@ -105,6 +107,45 @@ chmod +x install.sh
 ```
 
 ---
+
+## 📈 访客分析（Web 埋点）
+
+- **即插即用脚本**：  
+  ```html
+  <script>
+  (() => {
+    const ep = 'https://serverstatus.ltd/api/visitor/track';
+    const params = new URLSearchParams({
+      project_key: location.hostname || 'serverstatus.ltd',
+      page: location.href,
+      referrer: document.referrer || ''
+    });
+    const img = new Image();
+    img.src = `${ep}?${params.toString()}`;
+  })();
+  </script>
+  ```
+  无需认证，自动按域名归桶；若后端存在域名绑定会映射到对应 project_key，默认归 `serverstatus.ltd`。
+
+- **统计接口**：`GET /api/visitor/stats?project_key=serverstatus.ltd&hours=24`  
+  返回总访问、独立 IP、按日趋势、热门页面。
+
+- **聚合接口**：`GET /api/visitor/aggregate?group_by=referrer&hours=168&limit=20`  
+  支持 `group_by=page|referrer|domain|ua`，便于做多模态分析。
+
+- **域名绑定**：`POST /api/visitor/bindings` `{ "domain": "example.com", "project_key": "example-project" }`  
+  绑定后前端无需传参，自动按域名归类。
+
+- **前端展示**：内置面板新增 Visitor Analytics 卡片（Top Pages / Top Referrers，支持时间范围选择）。
+
+## 🔐 GitHub 登录（OAuth）
+- 环境变量：`GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET`，可选 `GITHUB_CALLBACK_URL`（默认 `http://<host>:<port>/api/auth/github/callback`）。
+- 接口：  
+  - `GET /api/auth/github/login` 跳转 GitHub  
+  - `GET /api/auth/github/callback` 发放会话 Cookie 后重定向 `/`  
+  - `GET /api/auth/me` 返回当前用户与存储的配置  
+  - `POST /api/auth/logout` 登出
+- 登录即自动创建用户和配置记录（SQLite `users` / `sessions` / `user_configs`）。
 
 ## 🏗️ 架构设计与进度
 

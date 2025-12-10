@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/kanshan/ServerStatus/data-server/internal/service"
+	servicehealth "github.com/kanshan/ServerStatus/data-server/internal/service/health"
+	"github.com/kanshan/ServerStatus/data-server/pkg/logger"
 )
 
 // Handler HTTP处理器接口
@@ -14,7 +17,7 @@ type Handler interface {
 
 // Router 路由器接口
 type Router interface {
-	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
+	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request), methods ...string)
 	Handle(pattern string, handler http.Handler)
 	Use(middleware ...func(http.Handler) http.Handler)
 }
@@ -153,9 +156,16 @@ type HandlerDependencies struct {
 	ServerService    service.ServerService
 	ExportService    service.ExportService
 	AuthService      service.AuthService
-	HealthService    service.HealthService
+	HealthService    HealthService // decoupled by interface defined in health handler
 	ConfigService    service.ConfigService
 	WebSocketService service.WebSocketService
+	Logger           logger.Logger
+}
+
+// HealthService 是 Handler 需要的最小健康服务接口，避免依赖具体实现。
+type HealthService interface {
+	CheckHealth(ctx context.Context, req *servicehealth.CheckRequest) (*servicehealth.HealthResponse, error)
+	GetServiceInfo(ctx context.Context) map[string]interface{}
 }
 
 // HandlerConfig 处理器配置
@@ -168,6 +178,8 @@ type HandlerConfig struct {
 	EnableLogging      bool     `json:"enable_logging"`
 	EnableMetrics      bool     `json:"enable_metrics"`
 	EnableRateLimit    bool     `json:"enable_rate_limit"`
+	RateLimitRequests  int      `json:"rate_limit_requests"`
+	RateLimitWindowSec int      `json:"rate_limit_window_sec"`
 	EnableCompression  bool     `json:"enable_compression"`
 	RequestTimeout     string   `json:"request_timeout"`
 	MaxRequestBodySize int64    `json:"max_request_body_size"`
@@ -184,6 +196,8 @@ func DefaultHandlerConfig() *HandlerConfig {
 		EnableLogging:      true,
 		EnableMetrics:      true,
 		EnableRateLimit:    false,
+		RateLimitRequests:  60,
+		RateLimitWindowSec: 60,
 		EnableCompression:  true,
 		RequestTimeout:     "30s",
 		MaxRequestBodySize: 10 << 20, // 10MB

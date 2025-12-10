@@ -4,7 +4,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.server
-    container_name: serverstatus-server
     ports:
       - "${SERVER_PORT:-8080}:8080"
     environment:
@@ -12,15 +11,16 @@ services:
       - PROJECT_KEY=${PROJECT_KEY:?PROJECT_KEY required}
       - SERVER_KEY=${SERVER_KEY:?SERVER_KEY required}
     volumes:
+      - ../server-config.json:/app/server-config.json:ro
       - ../data-server/web-ui:/app/web-ui
       - ../data-server/API.md:/app/API.md
-      - ../data:/app/data
-      - ../data-server/logs:/app/logs
-      - ../data-server/exports:/app/exports
+      - ${DATA_DIR:-../data}:/app/data
+      - ${LOG_DIR:-../data-server/logs}:/app/logs
+      - ${EXPORTS_DIR:-../data-server/exports}:/app/exports
     networks:
       - serverstatus
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/servers"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -29,7 +29,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.agent
-    container_name: serverstatus-agent
     hostname: ${AGENT_HOSTNAME:-serverstatus-agent}
     environment:
       - SERVER_URL=${SERVER_URL:-http://data-server:8080/api/data}
@@ -46,9 +45,8 @@ services:
   # 可选：简单静态前端，生产可自行替换或移除
   frontend:
     image: python:3.9-slim
-    container_name: serverstatus-frontend
     ports:
-      - "8081:8000"
+      - "${FRONTEND_PORT:-8081}:8000"
     volumes:
       - ../frontend-ui:/app:ro
     working_dir: /app

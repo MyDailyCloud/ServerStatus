@@ -31,6 +31,9 @@ class GPUMonitor {
         this.contextMenuTarget = null;
         this.versionInfo = null;
         this.versionLoadState = 'idle';
+        this.visitorCharts = {};
+        this.visitorHours = 24;
+        this.visitorProjectKey = 'serverstatus.ltd';
         
         this.init();
     }
@@ -70,6 +73,7 @@ class GPUMonitor {
         this.loadInitialData();
         this.initializeTutorial();
         this.loadVersionInfo();
+        this.setupVisitorAnalytics();
     }
 
     initializeTutorial() {
@@ -2746,15 +2750,15 @@ class GPUMonitor {
     async loadServerDetails(hostname, sessionId) {
         try {
             let url;
-            if (this.accessKey && sessionId) {
-                // 如果有accessKey和sessionId，使用session-based API
-                url = `/api/access/${this.accessKey}/server-by-session/${sessionId}`;
-            } else if (this.accessKey) {
-                // 如果只有accessKey，使用hostname-based API
-                url = `/api/access/${this.accessKey}/server/${hostname}`;
+            if (sessionId) {
+                if (this.accessKey) {
+                    url = `/api/access/${this.accessKey}/server-by-session/${sessionId}`;
+                } else {
+                    url = `/api/server/${sessionId}`;
+                }
             } else {
-                // 默认API
-                url = `/api/server/${hostname}`;
+                console.warn('缺少 sessionId，无法获取服务器详情');
+                return;
             }
             
             const response = await fetch(url);
@@ -3191,6 +3195,96 @@ class GPUMonitor {
         } catch (error) {
             console.error('Failed to load UUID count:', error);
         }
+    }
+
+    // -------- Visitor Analytics --------
+    setupVisitorAnalytics() {
+        const hoursSelect = document.getElementById('visitor-hours');
+        if (hoursSelect) {
+            hoursSelect.value = String(this.visitorHours);
+            hoursSelect.addEventListener('change', () => {
+                const v = parseInt(hoursSelect.value, 10);
+                this.visitorHours = Number.isNaN(v) ? 24 : v;
+                this.refreshVisitorAnalytics();
+            });
+        }
+        this.refreshVisitorAnalytics();
+    }
+
+    async refreshVisitorAnalytics() {
+        await Promise.all([
+            this.fetchVisitorStats().then((stats) => this.renderVisitorStats(stats)).catch((err) => console.error(err)),
+            this.fetchVisitorAggregate('referrer').then((items) => this.renderVisitorChart('visitor-referrers-chart', items, 'Referrers')).catch((err) => console.error(err)),
+        ]);
+    }
+
+    async fetchVisitorStats() {
+        const resp = await fetch(`/api/visitor/stats?hours=${this.visitorHours}`);
+        if (!resp.ok) {
+            throw new Error('获取访客统计失败');
+        }
+        return resp.json();
+    }
+
+    async fetchVisitorAggregate(groupBy) {
+        const resp = await fetch(`/api/visitor/aggregate?group_by=${groupBy}&hours=${this.visitorHours}&limit=8`);
+        if (!resp.ok) {
+            throw new Error('获取聚合数据失败');
+        }
+        return resp.json();
+    }
+
+    renderVisitorStats(stats) {
+        if (!stats) return;
+        const totalEl = document.getElementById('visitor-total');
+        const uniqueEl = document.getElementById('visitor-unique');
+        const projectEl = document.getElementById('visitor-project');
+
+        if (totalEl) totalEl.textContent = stats.total_visits || 0;
+        if (uniqueEl) uniqueEl.textContent = stats.unique_ips || 0;
+        if (projectEl) projectEl.textContent = stats.project_key || this.visitorProjectKey;
+
+        const pages = (stats.top_pages || []).slice(0, 8);
+        const labels = pages.map((p) => p.page || '(unknown)');
+        const data = pages.map((p) => p.count || 0);
+        const items = labels.map((k, i) => ({ key: k, count: data[i] }));
+        this.renderVisitorChart('visitor-pages-chart', items, 'Pages');
+    }
+
+    renderVisitorChart(canvasId, items, label) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        const labels = (items || []).map((i) => i.key || '(unknown)');
+        const data = (items || []).map((i) => i.count || 0);
+
+        if (this.visitorCharts[canvasId]) {
+            this.visitorCharts[canvasId].destroy();
+        }
+
+        this.visitorCharts[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: label || 'Count',
+                    data,
+                    backgroundColor: '#667eea',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (context) => `${context.formattedValue}` } }
+                },
+                scales: {
+                    x: { ticks: { maxRotation: 45, minRotation: 0 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
     }
 }
 

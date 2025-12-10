@@ -246,7 +246,7 @@ ServerStatus 提供完整的 RESTful API，方便集成和二次开发：
 GET /api/servers
 
 # 获取服务器详情
-GET /api/server/{hostname}
+GET /api/server/{sessionID}
 
 # 获取统计信息
 GET /api/uuid-count

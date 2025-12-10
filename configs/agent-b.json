@@ -1,0 +1,8 @@
+{
+  "server_url": "http://127.0.0.1:8080/api/data",
+  "project_key": "public",
+  "server_key": "serverstatus.ltd",
+  "report_interval": 5000000000,
+  "timeout": 10000000000,
+  "enable_user_resources": true
+}

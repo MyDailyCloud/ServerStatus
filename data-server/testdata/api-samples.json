@@ -1,0 +1,41 @@
+{
+  "health": {
+    "method": "GET",
+    "path": "/api/health"
+  },
+  "auth_validate": {
+    "method": "POST",
+    "path": "/api/auth/validate",
+    "body": {
+      "access_key": "ACCESS_KEY_SAMPLE",
+      "project_key": "project-sample"
+    }
+  },
+  "auth_generate": {
+    "method": "POST",
+    "path": "/api/auth/generate",
+    "body": {
+      "server_key": "SERVER_KEY_SAMPLE",
+      "project_key": "project-sample"
+    }
+  },
+  "export_servers": {
+    "method": "POST",
+    "path": "/api/export/servers",
+    "body": {
+      "format": "csv",
+      "type": "servers",
+      "project_key": "project-sample",
+      "limit": 10
+    }
+  },
+  "ws_stats": {
+    "method": "GET",
+    "path": "/api/ws/stats"
+  },
+  "config_get": {
+    "method": "GET",
+    "path": "/api/config"
+  }
+}
+

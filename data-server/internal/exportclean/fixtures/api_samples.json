@@ -1,0 +1,102 @@
+{
+  "perfect_sample": {
+    "id": "task-4f71c9d3",
+    "project_key": "proj-prod-insight",
+    "format": "csv",
+    "type": "servers",
+    "limit": 1500,
+    "filters": {
+      "hostname": "edge-12.sin.dc",
+      "status": "online"
+    }
+  },
+  "edge_sample": {
+    "id": "task-edge-ε",
+    "project_key": "proj-prod-insight",
+    "format": "json",
+    "type": "user_resources",
+    "limit": 1,
+    "filters": {
+      "hostname": "节点-测试-01",
+      "status": ""
+    }
+  },
+  "too_large_limit": {
+    "id": "task-too-large",
+    "project_key": "proj-prod-insight",
+    "format": "csv",
+    "type": "servers",
+    "limit": 500000,
+    "filters": {
+      "hostname": "edge-overload.dc",
+      "status": "online"
+    }
+  },
+  "missing_id": {
+    "id": "",
+    "project_key": "proj-prod-insight",
+    "format": "json",
+    "type": "history",
+    "limit": 100,
+    "filters": {
+      "hostname": "missing-id.dc",
+      "status": "offline"
+    }
+  },
+  "invalid_sample": {
+    "id": "task-bad-xxx",
+    "project_key": "",
+    "format": "xml",
+    "type": "unknown",
+    "limit": 0,
+    "filters": {
+      "hostname": "edge-err.dc",
+      "status": "online"
+    }
+  },
+  "too_long_project": {
+    "id": "task-long-proj",
+    "project_key": "proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "format": "csv",
+    "type": "servers",
+    "limit": 50,
+    "filters": {
+      "hostname": "edge-long.dc",
+      "status": "online"
+    }
+  },
+  "too_long_filter_value": {
+    "id": "task-long-filter",
+    "project_key": "proj-prod-insight",
+    "format": "json",
+    "type": "history",
+    "limit": 10,
+    "filters": {
+      "hostname": "host-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      "status": "online"
+    }
+  },
+  "invalid_char_project": {
+    "id": "task-bad-chars-proj",
+    "project_key": "proj bad space",
+    "format": "csv",
+    "type": "servers",
+    "limit": 20,
+    "filters": {
+      "hostname": "edge-01.dc",
+      "status": "online"
+    }
+  },
+  "invalid_char_filter": {
+    "id": "task-bad-chars-filter",
+    "project_key": "proj-prod-insight",
+    "format": "json",
+    "type": "history",
+    "limit": 10,
+    "filters": {
+      "hostname": "edge|bad|pipe",
+      "status": "online"
+    }
+  }
+}
+

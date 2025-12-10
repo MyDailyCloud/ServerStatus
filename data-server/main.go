@@ -1,3 +1,9 @@
+// Package main ServerStatus data server
+//
+// @title ServerStatus API
+// @version 1.0
+// @description ServerStatus 监控 API 文档
+// @BasePath /api
 package main
 
 import (
@@ -13,8 +19,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"sort"
@@ -25,6 +33,8 @@ import (
 
 	"github.com/NYTimes/gziphandler"
 	"github.com/gorilla/mux"
+	_ "github.com/kanshan/ServerStatus/data-server/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type SystemInfo struct {
@@ -139,13 +149,14 @@ type ServerData struct {
 	uuidStatsCache map[string]interface{} // UUID统计缓存
 	uuidCacheTime  time.Time              // 缓存更新时间
 	uuidCacheMutex sync.RWMutex           // 缓存读写锁
-	database       *Database              // 数据库实例
+	database       DBStore                // 数据库实例（接口，便于替换存储）
 }
 
 type ServerInfo struct {
-	Latest   *SystemInfo   `json:"latest"`
-	History  []*SystemInfo `json:"history"`
-	LastSeen time.Time     `json:"last_seen"`
+	Latest      *SystemInfo   `json:"latest"`
+	History     []*SystemInfo `json:"history"`
+	LastSeen    time.Time     `json:"last_seen"`
+	OwnerUserID int64         `json:"owner_user_id,omitempty"`
 }
 
 type ServerStatus struct {
@@ -168,22 +179,75 @@ type ServerStatus struct {
 	UserResources    []UserResourceInfo `json:"user_resources,omitempty"` // 用户资源使用信息
 }
 
+// VisitorEvent 访客埋点事件
+type VisitorEvent struct {
+	ProjectKey string    `json:"project_key"`
+	Domain     string    `json:"domain,omitempty"`
+	PageURL    string    `json:"page_url"`
+	Referrer   string    `json:"referrer"`
+	UserAgent  string    `json:"user_agent"`
+	IP         string    `json:"ip"`
+	SessionID  string    `json:"session_id,omitempty"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+// DailyVisitorStat 每日访客统计
+type DailyVisitorStat struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+// PageVisitorStat 页面访问统计
+type PageVisitorStat struct {
+	Page  string `json:"page"`
+	Count int    `json:"count"`
+}
+
+// VisitorStats 访客统计响应
+type VisitorStats struct {
+	ProjectKey  string             `json:"project_key"`
+	From        time.Time          `json:"from"`
+	To          time.Time          `json:"to"`
+	TotalVisits int                `json:"total_visits"`
+	UniqueIPs   int                `json:"unique_ips"`
+	Daily       []DailyVisitorStat `json:"daily"`
+	TopPages    []PageVisitorStat  `json:"top_pages,omitempty"`
+}
+
+// AuthUser 返回给前端的用户信息
+type AuthUser struct {
+	ID        int64       `json:"id"`
+	Login     string      `json:"login"`
+	Name      string      `json:"name"`
+	AvatarURL string      `json:"avatar_url"`
+	Email     string      `json:"email"`
+	Config    interface{} `json:"config,omitempty"`
+}
+
 type ServerConfig struct {
-	ProjectKey        string `json:"project_key"`
-	ServerKey         string `json:"server_key"`
-	Host              string `json:"host"`
-	Port              string `json:"port"`
-	RequireAuth       bool   `json:"require_auth"`
-	DataLimit         int    `json:"data_limit"`         // 数据保留条数限制
-	DataInterval      int    `json:"data_interval"`      // 数据上报间隔(秒)
-	DatabasePath      string `json:"database_path"`      // 数据库文件路径
-	EnableCompression bool   `json:"enable_compression"` // 启用gzip压缩
-	CompressionLevel  int    `json:"compression_level"`  // 压缩级别(1-9)
-	EnableWebSocket   bool   `json:"enable_websocket"`   // 启用WebSocket实时推送
-	EnableCache       bool   `json:"enable_cache"`       // 启用Redis缓存
-	RedisAddr         string `json:"redis_addr"`         // Redis地址
-	RedisPassword     string `json:"redis_password"`     // Redis密码
-	RedisDB           int    `json:"redis_db"`           // Redis数据库编号
+	ProjectKey        string         `json:"project_key"`
+	ServerKey         string         `json:"server_key"`
+	Host              string         `json:"host"`
+	Port              string         `json:"port"`
+	RequireAuth       bool           `json:"require_auth"`
+	DataLimit         int            `json:"data_limit"`                     // 数据保留条数限制
+	DataInterval      int            `json:"data_interval"`                  // 数据上报间隔(秒)
+	DatabasePath      string         `json:"database_path"`                  // 数据库文件路径
+	DatabaseDriver    string         `json:"database_driver"`                // 数据库驱动（sqlite, future: postgres/mysql）
+	DatabaseConns     []DBConnConfig `json:"database_connections,omitempty"` // 多数据库配置，默认使用第一个
+	EnableCompression bool           `json:"enable_compression"`             // 启用gzip压缩
+	CompressionLevel  int            `json:"compression_level"`              // 压缩级别(1-9)
+	EnableWebSocket   bool           `json:"enable_websocket"`               // 启用WebSocket实时推送
+	EnableCache       bool           `json:"enable_cache"`                   // 启用Redis缓存
+	RedisAddr         string         `json:"redis_addr"`                     // Redis地址
+	RedisPassword     string         `json:"redis_password"`                 // Redis密码
+	RedisDB           int            `json:"redis_db"`                       // Redis数据库编号
+}
+
+// DBConnConfig 单个数据库连接配置
+type DBConnConfig struct {
+	Driver string `json:"driver"`
+	Path   string `json:"path"`
 }
 
 // validateServerConfig 验证服务器配置
@@ -242,8 +306,30 @@ func validateServerConfig(config *ServerConfig) error {
 
 	// 验证数据库路径
 	if config.DatabasePath != "" {
-		if !isValidPath(config.DatabasePath) {
-			errors = append(errors, fmt.Sprintf("无效的数据库路径: %s", config.DatabasePath))
+		if !isValidDBPath(config.DatabaseDriver, config.DatabasePath) {
+			errors = append(errors, fmt.Sprintf("无效的数据库路径/DSN: %s", config.DatabasePath))
+		}
+	}
+
+	// 验证数据库驱动（允许预置 pg/mysql 以便 docker 测试配置，但当前实现仅 sqlite）
+	if config.DatabaseDriver == "" {
+		config.DatabaseDriver = "sqlite"
+	}
+	if !isSupportedDriver(config.DatabaseDriver) {
+		errors = append(errors, fmt.Sprintf("不支持的数据库驱动: %s (当前实现仅 sqlite，pg/mysql 需后续实现)", config.DatabaseDriver))
+	}
+
+	// 验证多数据库列表（若存在，默认取第一个）
+	for i, c := range config.DatabaseConns {
+		driver := strings.ToLower(c.Driver)
+		if driver == "" {
+			driver = strings.ToLower(config.DatabaseDriver)
+		}
+		if c.Path != "" && !isValidDBPath(driver, c.Path) {
+			errors = append(errors, fmt.Sprintf("无效的数据库路径/DSN(database_connections[%d]): %s", i, c.Path))
+		}
+		if !isSupportedDriver(driver) {
+			errors = append(errors, fmt.Sprintf("不支持的数据库驱动(database_connections[%d]): %s (当前实现仅 sqlite)", i, c.Driver))
 		}
 	}
 
@@ -326,6 +412,25 @@ func isValidPath(path string) bool {
 	return true
 }
 
+// isValidDBPath 依据驱动校验路径/DSN
+func isValidDBPath(driver, path string) bool {
+	if path == "" {
+		return true
+	}
+	drv := strings.ToLower(driver)
+	// sqlite 仍按路径规则校验
+	if drv == "" || drv == "sqlite" || drv == "sqlite3" {
+		return isValidPath(path)
+	}
+	// 允许常见 DSN scheme
+	if strings.HasPrefix(path, "postgres://") || strings.HasPrefix(path, "postgresql://") ||
+		strings.HasPrefix(path, "pg://") || strings.HasPrefix(path, "mysql://") || strings.HasPrefix(path, "mariadb://") {
+		return true
+	}
+	// 兜底：接受其它非空值
+	return isValidPath(path)
+}
+
 // getHostname 获取主机名
 func getHostname() string {
 	hostname, err := os.Hostname()
@@ -333,6 +438,158 @@ func getHostname() string {
 		return "unknown"
 	}
 	return hostname
+}
+
+// getClientIP 获取真实客户端IP
+func getClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		if len(parts) > 0 {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return strings.TrimSpace(realIP)
+	}
+
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+
+	return r.RemoteAddr
+}
+
+// getDomainFromURL 从URL提取域名
+func getDomainFromURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	host := u.Hostname()
+	if host == "" {
+		return ""
+	}
+	return strings.ToLower(host)
+}
+
+// newOAuthState 生成并存储state
+func newOAuthState() string {
+	state := generateRandomHex(16)
+	githubStateStore.mu.Lock()
+	githubStateStore.states[state] = time.Now().Add(5 * time.Minute)
+	githubStateStore.mu.Unlock()
+	return state
+}
+
+// validateOAuthState 校验state有效性
+func validateOAuthState(state string) bool {
+	githubStateStore.mu.Lock()
+	defer githubStateStore.mu.Unlock()
+	exp, ok := githubStateStore.states[state]
+	if !ok {
+		return false
+	}
+	delete(githubStateStore.states, state)
+	return time.Now().Before(exp)
+}
+
+// generateRandomHex 生成随机HEX字符串
+func generateRandomHex(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
+}
+
+// setSessionCookie 设置会话cookie
+func setSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  expires,
+	})
+}
+
+// clearSessionCookie 清除会话cookie
+func clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+}
+
+// getSessionUser 获取当前会话用户（不写cookie）
+func getSessionUser(r *http.Request) (*User, error) {
+	if data.database == nil {
+		return nil, fmt.Errorf("数据库未初始化")
+	}
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
+		return nil, nil
+	}
+	session, err := data.database.GetSession(cookie.Value)
+	if err != nil || session == nil {
+		return nil, nil
+	}
+	if time.Now().After(session.ExpiresAt) {
+		_ = data.database.DeleteSession(cookie.Value)
+		return nil, nil
+	}
+	user, err := data.database.GetUserByID(session.UserID)
+	if err != nil || user == nil {
+		return nil, nil
+	}
+	return user, nil
+}
+
+// isPublicPath 判断是否无需登录
+func isPublicPath(path string) bool {
+	if publicPaths[path] {
+		return true
+	}
+	for _, p := range publicPathPrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// authMiddleware 除上报、登录等公共路径外，强制登录
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 若未开启认证，直接放行
+		if !serverConfig.RequireAuth {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if isPublicPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		user, _ := getSessionUser(r)
+		if user == nil {
+			http.Error(w, "需要登录", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // AccessKey缓存结构
@@ -348,6 +605,40 @@ var (
 	buildCommit  = "unknown"
 	buildTime    = "unknown"
 
+	// 1x1 透明GIF，用于访客埋点像素返回
+	trackingPixel = []byte{71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 128, 0, 0, 0, 0, 0, 255, 255, 255, 33, 249, 4, 1, 0, 0, 1, 0, 44, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 68, 1, 0, 59}
+
+	// GitHub OAuth 配置（从环境变量读取）
+	githubClientID     = os.Getenv("GITHUB_CLIENT_ID")
+	githubClientSecret = os.Getenv("GITHUB_CLIENT_SECRET")
+	githubCallbackURL  = os.Getenv("GITHUB_CALLBACK_URL")
+
+	// 会话
+	sessionCookieName = "ss_session"
+	sessionTTL        = 7 * 24 * time.Hour
+
+	// GitHub state 防重放
+	githubStateStore = struct {
+		mu     sync.Mutex
+		states map[string]time.Time
+	}{states: make(map[string]time.Time)}
+
+	// 公共路径（无需登录）
+	publicPaths = map[string]bool{
+		"/api/data":                 true,
+		"/api/auth/github/login":    true,
+		"/api/auth/github/callback": true,
+		"/api/health":               true,
+		"/api/version":              true,
+		"/api/stats":                true,
+	}
+
+	publicPathPrefixes = []string{
+		"/download/",
+		"/install",
+		"/API.md",
+	}
+
 	data = &ServerData{
 		servers:        make(map[string]*ServerInfo),
 		uuidStatsCache: make(map[string]interface{}),
@@ -360,10 +651,12 @@ var (
 		ServerKey:         "serverstatus.ltd", // 默认服务器密钥
 		Host:              "0.0.0.0",
 		Port:              "8080",
-		RequireAuth:       false,
+		RequireAuth:       true,
 		DataLimit:         1000,                     // 默认保留1000条数据
 		DataInterval:      5,                        // 默认5秒间隔
 		DatabasePath:      "./data/serverstatus.db", // 数据库路径
+		DatabaseDriver:    "sqlite",                 // 默认驱动
+		DatabaseConns:     []DBConnConfig{},         // 可选多DB配置
 		EnableCompression: true,                     // 默认启用压缩
 		CompressionLevel:  6,                        // 默认压缩级别
 		EnableWebSocket:   true,                     // 默认启用WebSocket
@@ -394,6 +687,7 @@ var (
 	redisAddr         = flag.String("redis", "localhost:6379", "Redis服务器地址")
 	redisPassword     = flag.String("redis-password", "", "Redis服务器密码")
 	redisDB           = flag.Int("redis-db", 0, "Redis数据库编号")
+	databaseDriver    = flag.String("db-driver", "sqlite", "数据库驱动 (sqlite, 未来: postgres/mysql)")
 	showHelp          = flag.Bool("help", false, "显示帮助信息")
 )
 
@@ -515,6 +809,9 @@ func main() {
 	if *redisDB != serverConfig.RedisDB {
 		serverConfig.RedisDB = *redisDB
 	}
+	if *databaseDriver != "" && strings.ToLower(*databaseDriver) != strings.ToLower(serverConfig.DatabaseDriver) {
+		serverConfig.DatabaseDriver = strings.ToLower(*databaseDriver)
+	}
 
 	// 初始化缓存管理器
 	if serverConfig.EnableCache {
@@ -538,7 +835,7 @@ func main() {
 
 	// 初始化数据库
 	log.Println("初始化数据库...")
-	db, err := NewDatabase(serverConfig.DatabasePath)
+	db, err := initDBStore()
 	if err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
@@ -556,7 +853,9 @@ func main() {
 	log.Printf("端口: %s", serverConfig.Port)
 	log.Printf("数据限制: %d 条记录", serverConfig.DataLimit)
 	log.Printf("推荐数据间隔: %d 秒", serverConfig.DataInterval)
-	log.Printf("数据库路径: %s", serverConfig.DatabasePath)
+	activeDriver, activePath := getActiveDBConfig()
+	log.Printf("数据库驱动: %s", activeDriver)
+	log.Printf("数据库路径: %s", activePath)
 	if serverConfig.EnableCompression {
 		log.Printf("gzip压缩: 启用 (级别: %d)", serverConfig.CompressionLevel)
 	} else {
@@ -578,10 +877,22 @@ func main() {
 		log.Println("API认证: 禁用")
 	}
 
+	// GitHub 回调默认值
+	if githubCallbackURL == "" {
+		host := serverConfig.Host
+		if host == "0.0.0.0" {
+			host = "localhost"
+		}
+		githubCallbackURL = fmt.Sprintf("http://%s:%s/api/auth/github/callback", host, serverConfig.Port)
+	}
+
 	r := mux.NewRouter()
 
 	// 添加CORS中间件支持前后端分离
 	r.Use(corsMiddleware)
+
+	// Swagger 文档
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// 定义需要压缩的API路径
 	compressiblePaths := []string{
@@ -590,24 +901,32 @@ func main() {
 		"/api/access/",
 		"/api/uuid-count",
 		"/api/user-resources/",
+		"/api/visitor/stats",
+		"/api/visitor/aggregate",
+		"/api/auth/me",
 	}
 
 	// API路由 - 应用压缩
 	api := r.PathPrefix("/api").Subrouter()
+	api.Use(authMiddleware)
 	api.Use(compressionConditionalMiddleware(compressiblePaths))
 
 	api.HandleFunc("/data", handleData).Methods("POST")
 	api.HandleFunc("/register-session", handleRegisterSession).Methods("POST")
 	api.HandleFunc("/servers", handleGetServers).Methods("GET")
-	api.HandleFunc("/server/{hostname}", handleGetServer).Methods("GET")
+	api.HandleFunc("/server/{sessionID}", handleGetServer).Methods("GET")
 	// 双密钥认证相关路由
 	api.HandleFunc("/generate-access-key", handleGenerateAccessKey).Methods("POST")
 	api.HandleFunc("/access/{accessKey}/servers", handleGetServersByAccessKey).Methods("GET")
-	api.HandleFunc("/access/{accessKey}/server/{hostname}", handleGetServerByAccessKey).Methods("GET")
 	api.HandleFunc("/access/{accessKey}/server-by-session/{sessionID}", handleGetServerBySessionID).Methods("GET")
-	api.HandleFunc("/access/{accessKey}/user-resources/{hostname}", handleGetUserResourcesByAccessKey).Methods("GET")
-	api.HandleFunc("/user-resources/{hostname}", handleGetUserResources).Methods("GET")
+	api.HandleFunc("/access/{accessKey}/user-resources/{sessionID}", handleGetUserResourcesByAccessKey).Methods("GET")
+	api.HandleFunc("/user-resources/{sessionID}", handleGetUserResources).Methods("GET")
 	api.HandleFunc("/uuid-count", handleGetUUIDCount).Methods("GET")
+	api.HandleFunc("/visitor/track", handleTrackVisit).Methods("GET")
+	api.HandleFunc("/visitor/stats", handleVisitorStats).Methods("GET")
+	api.HandleFunc("/visitor/aggregate", handleVisitorAggregate).Methods("GET")
+	api.HandleFunc("/visitor/bindings", handleListDomainBindings).Methods("GET")
+	api.HandleFunc("/visitor/bindings", handleUpsertDomainBinding).Methods("POST")
 
 	// 健康检查和系统状态路由
 	api.HandleFunc("/health", handleHealth).Methods("GET")
@@ -623,6 +942,11 @@ func main() {
 	api.HandleFunc("/export/user-resources", handleExportUserResourcesCSV).Methods("GET")
 	// 部署辅助：返回一键运行客户端的命令与env
 	api.HandleFunc("/deploy/agent-command", handleDeployAgentCommand).Methods("GET")
+	// GitHub OAuth
+	api.HandleFunc("/auth/github/login", handleAuthGitHubLogin).Methods("GET")
+	api.HandleFunc("/auth/github/callback", handleAuthGitHubCallback).Methods("GET")
+	api.HandleFunc("/auth/me", handleAuthMe).Methods("GET")
+	api.HandleFunc("/auth/logout", handleAuthLogout).Methods("POST")
 
 	// WebSocket实时通信路由
 	if serverConfig.EnableWebSocket {
@@ -674,14 +998,57 @@ func main() {
 
 // loadServersFromDatabase 从数据库加载服务器数据到内存缓存
 func loadServersFromDatabase() error {
-	// 这里可以预加载活跃的服务器数据到内存
-	// 为了性能考虑，我们只加载最新的服务器信息，历史数据按需从数据库读取
-	log.Println("从数据库预加载服务器数据...")
+	if data.database == nil {
+		return fmt.Errorf("数据库未初始化")
+	}
+
+	// 预估数量后一次拉取，避免多次分页 IO
+	total, err := data.database.GetServerCount("")
+	if err != nil {
+		return err
+	}
+	if total == 0 {
+		log.Println("数据库无服务器记录，无需预加载")
+		return nil
+	}
+
+	servers, err := data.database.GetAllServers("", 0, total)
+	if err != nil {
+		return err
+	}
+
+	loaded := 0
+	data.mu.Lock()
+	defer data.mu.Unlock()
+
+	for _, srv := range servers {
+		if srv == nil || srv.Latest == nil || srv.Latest.SessionID == "" {
+			continue
+		}
+
+		// 加载历史数据（按 DataLimit 限制）
+		history, err := data.database.GetHistoryData(srv.Latest.SessionID, serverConfig.DataLimit)
+		if err != nil {
+			log.Printf("预加载历史数据失败: %v", err)
+			history = nil
+		} else {
+			reverseHistory(history)
+		}
+
+		data.servers[srv.Latest.SessionID] = &ServerInfo{
+			Latest:   srv.Latest,
+			History:  history,
+			LastSeen: srv.LastSeen,
+		}
+		loaded++
+	}
+
+	log.Printf("从数据库预加载服务器数据完成: %d/%d 台", loaded, total)
 	return nil
 }
 
 // initializeHealthService 初始化健康检查服务
-func initializeHealthService(db *Database) {
+func initializeHealthService(db DBStore) {
 	log.Println("✅ 健康检查服务已初始化 (使用简化实现)")
 }
 
@@ -704,6 +1071,20 @@ func saveServerToDatabase(sessionID, hostname, projectKey string, info *SystemIn
 	return nil
 }
 
+// handleData godoc
+// @Summary 上报监控数据
+// @Description 监控代理上报系统信息，支持双密钥校验
+// @Tags data
+// @Accept json
+// @Produce json
+// @Param X-Project-Key header string false "项目密钥（默认 public）"
+// @Param X-Server-Key header string false "服务器密钥（RequireAuth=true 时需要）"
+// @Param payload body SystemInfo true "系统信息"
+// @Success 200 {string} string "ok"
+// @Failure 400 {string} string "解析数据失败"
+// @Failure 401 {string} string "无效的服务器密钥"
+// @Failure 500 {string} string "数据保存失败"
+// @Router /data [post]
 func handleData(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[数据上报] 收到数据上报请求，来源IP: %s", r.RemoteAddr)
 
@@ -812,7 +1193,18 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleGetServers godoc
+// @Summary 获取服务器列表
+// @Tags server
+// @Produce json
+// @Success 200 {array} ServerStatus
+// @Router /servers [get]
 func handleGetServers(w http.ResponseWriter, r *http.Request) {
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
 	// 解析分页参数
 	page := 1
 	limit := 100
@@ -870,7 +1262,7 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Printf("从数据库获取服务器列表失败: %v", err)
 				// 降级到内存数据
-				servers = getServersFromMemory(projectKey, now)
+				servers = getServersFromMemory(projectKey, now, user)
 			} else {
 				// 转换数据库数据为ServerStatus格式
 				for _, server := range dbServers {
@@ -919,7 +1311,7 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			// 从内存获取数据
-			servers = getServersFromMemory(projectKey, now)
+			servers = getServersFromMemory(projectKey, now, user)
 		}
 	}
 
@@ -941,14 +1333,23 @@ func handleGetServers(w http.ResponseWriter, r *http.Request) {
 }
 
 // getServersFromMemory 从内存获取服务器数据（降级方案）
-func getServersFromMemory(projectKey string, now time.Time) []ServerStatus {
+func getServersFromMemory(projectKey string, now time.Time, user *User) []ServerStatus {
 	data.mu.RLock()
 	defer data.mu.RUnlock()
+
+	var userID int64
+	if user != nil {
+		userID = user.ID
+	}
 
 	var servers []ServerStatus
 
 	for _, server := range data.servers {
 		if server.Latest == nil {
+			continue
+		}
+
+		if server.OwnerUserID > 0 && server.OwnerUserID != userID {
 			continue
 		}
 
@@ -986,16 +1387,32 @@ func getServersFromMemory(projectKey string, now time.Time) []ServerStatus {
 	return servers
 }
 
+// handleGetServer godoc
+// @Summary 获取指定服务器详情
+// @Tags server
+// @Produce json
+// @Param sessionID path string true "SessionID"
+// @Success 200 {object} ServerInfo
+// @Failure 404 {string} string "服务器不存在"
+// @Router /server/{sessionID} [get]
 func handleGetServer(w http.ResponseWriter, r *http.Request) {
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
-	hostname := vars["hostname"]
+	sessionID := vars["sessionID"]
 
-	data.mu.RLock()
-	defer data.mu.RUnlock()
-
-	server, exists := data.servers[hostname]
-	if !exists {
+	server := getServerBySessionID(sessionID)
+	if server == nil {
 		http.Error(w, "服务器不存在", http.StatusNotFound)
+		return
+	}
+
+	if server.OwnerUserID > 0 && server.OwnerUserID != user.ID {
+		http.Error(w, "无权访问该服务器", http.StatusForbidden)
 		return
 	}
 
@@ -1033,9 +1450,24 @@ type SessionRegisterResponse struct {
 	Hostname  string `json:"hostname"`
 }
 
-// handleRegisterSession 注册新的session
+// handleRegisterSession godoc
+// @Summary 注册新的 Session
+// @Tags session
+// @Accept json
+// @Produce json
+// @Param payload body SessionRegisterRequest true "主机与项目"
+// @Success 200 {object} SessionRegisterResponse
+// @Failure 400 {string} string "参数错误"
+// @Failure 401 {string} string "项目密钥验证失败"
+// @Router /register-session [post]
 func handleRegisterSession(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Session注册] 收到注册请求，来源IP: %s", r.RemoteAddr)
+
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
 
 	var req SessionRegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1070,6 +1502,15 @@ func handleRegisterSession(w http.ResponseWriter, r *http.Request) {
 	// 生成UUID作为session ID
 	sessionID := generateUUID()
 
+	data.mu.Lock()
+	if data.servers[sessionID] == nil {
+		data.servers[sessionID] = &ServerInfo{
+			History: make([]*SystemInfo, 0, serverConfig.DataLimit),
+		}
+	}
+	data.servers[sessionID].OwnerUserID = user.ID
+	data.mu.Unlock()
+
 	response := SessionRegisterResponse{
 		SessionID: sessionID,
 		Hostname:  req.Hostname,
@@ -1081,10 +1522,19 @@ func handleRegisterSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 
-	log.Printf("[Session注册] 成功为主机 %s 分配Session ID: %s", req.Hostname, sessionID)
+	log.Printf("[Session注册] 成功为主机 %s 分配Session ID: %s，归属用户: %s", req.Hostname, sessionID, user.Login)
 }
 
-// handleGenerateAccessKey 生成访问密钥
+// handleGenerateAccessKey godoc
+// @Summary 生成访问密钥
+// @Tags access
+// @Accept json
+// @Produce json
+// @Param payload body AccessKeyRequest true "双密钥"
+// @Success 200 {object} AccessKeyResponse
+// @Failure 400 {string} string "无效的请求格式"
+// @Failure 401 {string} string "无效的服务器密钥或项目密钥"
+// @Router /generate-access-key [post]
 func handleGenerateAccessKey(w http.ResponseWriter, r *http.Request) {
 	var req AccessKeyRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -1115,7 +1565,14 @@ func handleGenerateAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetServersByAccessKey 根据访问密钥获取服务器列表
+// handleGetServersByAccessKey godoc
+// @Summary 使用访问密钥获取服务器列表
+// @Tags access
+// @Produce json
+// @Param accessKey path string true "访问密钥"
+// @Success 200 {array} ServerStatus
+// @Failure 401 {string} string "无效的访问密钥"
+// @Router /access/{accessKey}/servers [get]
 func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	accessKey := vars["accessKey"]
@@ -1182,55 +1639,16 @@ func handleGetServersByAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetServerByAccessKey 根据访问密钥和主机名获取特定服务器详情
-func handleGetServerByAccessKey(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	accessKey := vars["accessKey"]
-	hostname := vars["hostname"]
-
-	// 验证访问密钥格式
-	if accessKey == "" {
-		http.Error(w, "无效的访问密钥", http.StatusUnauthorized)
-		return
-	}
-
-	data.mu.RLock()
-	defer data.mu.RUnlock()
-
-	// 查找匹配hostname的服务器（可能有多个session）
-	var matchedServer *ServerInfo
-	for _, server := range data.servers {
-		if server.Latest != nil && server.Latest.Hostname == hostname {
-			if isServerMatchingAccessKey(server.Latest.ProjectKey, accessKey) {
-				matchedServer = server
-				break
-			}
-		}
-	}
-
-	if matchedServer == nil {
-		http.Error(w, "服务器不存在或访问被拒绝", http.StatusNotFound)
-		return
-	}
-
-	// 过滤历史数据，只返回匹配访问密钥的数据
-	filteredServer := &ServerInfo{
-		History:  make([]*SystemInfo, 0),
-		Latest:   matchedServer.Latest,
-		LastSeen: matchedServer.LastSeen,
-	}
-
-	for _, historyItem := range matchedServer.History {
-		if isServerMatchingAccessKey(historyItem.ProjectKey, accessKey) {
-			filteredServer.History = append(filteredServer.History, historyItem)
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(filteredServer)
-}
-
-// handleGetServerBySessionID 根据访问密钥和sessionID获取特定服务器详情
+// handleGetServerBySessionID godoc
+// @Summary 使用访问密钥+SessionID 获取服务器详情
+// @Tags access
+// @Produce json
+// @Param accessKey path string true "访问密钥"
+// @Param sessionID path string true "Session ID"
+// @Success 200 {object} ServerInfo
+// @Failure 401 {string} string "无效的访问密钥"
+// @Failure 404 {string} string "服务器不存在"
+// @Router /access/{accessKey}/server-by-session/{sessionID} [get]
 func handleGetServerBySessionID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	accessKey := vars["accessKey"]
@@ -1289,18 +1707,32 @@ func isServerMatchingAccessKey(serverProjectKey, accessKey string) bool {
 	return false
 }
 
-// handleGetUserResources 获取特定服务器的用户资源使用情况
+// handleGetUserResources godoc
+// @Summary 获取指定服务器的用户资源使用情况
+// @Tags user_resources
+// @Produce json
+// @Param sessionID path string true "SessionID"
+// @Success 200 {array} UserResourceInfo
+// @Failure 404 {string} string "服务器不存在或没有数据"
+// @Router /user-resources/{sessionID} [get]
 func handleGetUserResources(w http.ResponseWriter, r *http.Request) {
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
-	hostname := vars["hostname"]
+	sessionID := vars["sessionID"]
 
-	data.mu.RLock()
-	defer data.mu.RUnlock()
-
-	// 查找服务器
-	server, exists := data.servers[hostname]
-	if !exists {
+	server := getServerBySessionID(sessionID)
+	if server == nil {
 		http.Error(w, "服务器不存在", http.StatusNotFound)
+		return
+	}
+
+	if server.OwnerUserID > 0 && server.OwnerUserID != user.ID {
+		http.Error(w, "无权访问该服务器", http.StatusForbidden)
 		return
 	}
 
@@ -1318,11 +1750,20 @@ func handleGetUserResources(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetUserResourcesByAccessKey 根据访问密钥获取用户资源数据
+// handleGetUserResourcesByAccessKey godoc
+// @Summary 使用访问密钥获取用户资源数据
+// @Tags access
+// @Produce json
+// @Param accessKey path string true "访问密钥"
+// @Param sessionID path string true "SessionID"
+// @Success 200 {array} UserResourceInfo
+// @Failure 401 {string} string "无效的访问密钥"
+// @Failure 404 {string} string "服务器不存在或没有数据"
+// @Router /access/{accessKey}/user-resources/{sessionID} [get]
 func handleGetUserResourcesByAccessKey(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	accessKey := vars["accessKey"]
-	hostname := vars["hostname"]
+	sessionID := vars["sessionID"]
 
 	// 验证访问密钥格式
 	if accessKey == "" {
@@ -1334,15 +1775,7 @@ func handleGetUserResourcesByAccessKey(w http.ResponseWriter, r *http.Request) {
 	defer data.mu.RUnlock()
 
 	// 查找服务器
-	var matchedServer *ServerInfo
-	for _, server := range data.servers {
-		if server.Latest != nil && server.Latest.Hostname == hostname {
-			if isServerMatchingAccessKey(server.Latest.ProjectKey, accessKey) {
-				matchedServer = server
-				break
-			}
-		}
-	}
+	matchedServer := getServerBySessionID(sessionID)
 
 	if matchedServer == nil {
 		http.Error(w, "服务器不存在或访问被拒绝", http.StatusNotFound)
@@ -1363,7 +1796,12 @@ func handleGetUserResourcesByAccessKey(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetUUIDCount 获取UUID数量统计（带缓存）
+// handleGetUUIDCount godoc
+// @Summary 获取UUID数量统计
+// @Tags stats
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /uuid-count [get]
 func handleGetUUIDCount(w http.ResponseWriter, r *http.Request) {
 	var response map[string]interface{}
 	var err error
@@ -1660,7 +2098,13 @@ echo "后台运行: nohup ./monitor-agent-linux > agent.log 2>&1 &"
 `
 }
 
-// handleWebSocketStats 获取WebSocket连接统计信息
+// handleWebSocketStats godoc
+// @Summary 获取WebSocket连接统计信息
+// @Tags websocket
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {string} string "WebSocket未启用"
+// @Router /ws-stats [get]
 func handleWebSocketStats(w http.ResponseWriter, r *http.Request) {
 	if !serverConfig.EnableWebSocket {
 		http.Error(w, "WebSocket未启用", http.StatusServiceUnavailable)
@@ -1676,7 +2120,12 @@ func handleWebSocketStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleHealth 健康检查端点
+// handleHealth godoc
+// @Summary 健康检查
+// @Tags system
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /health [get]
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	healthStatus := "healthy"
 	components := make(map[string]interface{})
@@ -1772,6 +2221,12 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleVersion godoc
+// @Summary 版本信息
+// @Tags system
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /version [get]
 func handleVersion(w http.ResponseWriter, r *http.Request) {
 	version := map[string]interface{}{
 		"name":       "ServerStatus Data Server",
@@ -1792,7 +2247,12 @@ func handleVersion(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleSystemStats 系统统计信息端点
+// handleSystemStats godoc
+// @Summary 系统统计信息
+// @Tags system
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /stats [get]
 func handleSystemStats(w http.ResponseWriter, r *http.Request) {
 	stats := map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -1884,7 +2344,512 @@ func handleSystemStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleReloadConfig 配置热重载
+// handleTrackVisit godoc
+// @Summary 访客埋点上报
+// @Tags visitor
+// @Produce image/gif
+// @Param page query string false "页面URL"
+// @Param referrer query string false "来源URL"
+// @Param project_key query string false "项目密钥，空则自动推断或使用默认"
+// @Param session_id query string false "会话ID"
+// @Router /visitor/track [get]
+func handleTrackVisit(w http.ResponseWriter, r *http.Request) {
+	pageURL := r.URL.Query().Get("page")
+	if pageURL == "" {
+		pageURL = r.Referer()
+	}
+
+	referrer := r.URL.Query().Get("referrer")
+	if referrer == "" {
+		referrer = r.Referer()
+	}
+
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		sessionID = r.URL.Query().Get("sid")
+	}
+
+	// 基于Referer/页面自动推断域名
+	domain := getDomainFromURL(pageURL)
+	if domain == "" {
+		domain = getDomainFromURL(referrer)
+	}
+
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		// 若绑定存在则使用绑定，否则使用域名作为桶，不行再回退默认
+		if data.database != nil && domain != "" {
+			if pk, err := data.database.GetProjectKeyByDomain(domain); err == nil && pk != "" {
+				projectKey = pk
+			}
+		}
+		if projectKey == "" {
+			if domain != "" {
+				projectKey = domain
+			} else {
+				projectKey = "serverstatus.ltd"
+			}
+		}
+	}
+
+	event := &VisitorEvent{
+		ProjectKey: projectKey,
+		Domain:     domain,
+		PageURL:    pageURL,
+		Referrer:   referrer,
+		UserAgent:  r.UserAgent(),
+		IP:         getClientIP(r),
+		SessionID:  sessionID,
+		Timestamp:  time.Now(),
+	}
+
+	if data.database != nil {
+		if err := data.database.SaveVisitorEvent(event); err != nil {
+			log.Printf("保存访客事件失败: %v", err)
+		}
+	}
+
+	writeTrackingPixel(w)
+}
+
+// handleVisitorStats godoc
+// @Summary 获取访客统计
+// @Tags visitor
+// @Produce json
+// @Param project_key query string false "项目密钥"
+// @Param hours query int false "最近小时数，默认24"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {string} string "需要登录"
+// @Failure 503 {string} string "数据库未初始化"
+// @Router /visitor/stats [get]
+func handleVisitorStats(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		projectKey = "public"
+	}
+
+	// 非public项目需要登录
+	if projectKey != "public" {
+		if user, _ := getSessionUser(r); user == nil {
+			http.Error(w, "需要登录", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	hours := 24
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if h, err := strconv.Atoi(hoursStr); err == nil && h > 0 && h <= 24*30 {
+			hours = h
+		}
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+
+	stats, err := data.database.GetVisitorStats(projectKey, since)
+	if err != nil {
+		log.Printf("获取访客统计失败: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		log.Printf("编码访客统计失败: %v", err)
+	}
+}
+
+// handleVisitorAggregate godoc
+// @Summary 访客分组聚合
+// @Tags visitor
+// @Produce json
+// @Param group_by query string true "page|referrer|domain|ua"
+// @Param project_key query string false "项目密钥"
+// @Param hours query int false "最近小时数，默认24"
+// @Param limit query int false "返回条数，默认20"
+// @Success 200 {array} AggregatedVisitorItem
+// @Failure 400 {string} string "缺少 group_by"
+// @Failure 503 {string} string "数据库未初始化"
+// @Router /visitor/aggregate [get]
+func handleVisitorAggregate(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	groupBy := r.URL.Query().Get("group_by")
+	if groupBy == "" {
+		http.Error(w, "group_by 不能为空", http.StatusBadRequest)
+		return
+	}
+
+	projectKey := r.URL.Query().Get("project_key")
+	if projectKey == "" {
+		projectKey = "public"
+	}
+
+	// 非public项目需要登录
+	if projectKey != "public" {
+		if user, _ := getSessionUser(r); user == nil {
+			http.Error(w, "需要登录", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	hours := 24
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if h, err := strconv.Atoi(hoursStr); err == nil && h > 0 && h <= 24*30 {
+			hours = h
+		}
+	}
+
+	limit := 20
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if l, err := strconv.Atoi(lStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+	items, err := data.database.GetVisitorAggregation(projectKey, groupBy, since, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		log.Printf("编码聚合统计失败: %v", err)
+	}
+}
+
+// handleAuthGitHubLogin godoc
+// @Summary GitHub OAuth 登录跳转
+// @Tags auth
+// @Produce json
+// @Success 302 {string} string "跳转至 GitHub"
+// @Failure 503 {string} string "未配置 GitHub OAuth"
+// @Router /auth/github/login [get]
+func handleAuthGitHubLogin(w http.ResponseWriter, r *http.Request) {
+	if githubClientID == "" || githubClientSecret == "" {
+		http.Error(w, "未配置 GitHub OAuth（GITHUB_CLIENT_ID/SECRET）", http.StatusServiceUnavailable)
+		return
+	}
+
+	state := newOAuthState()
+	cb := githubCallbackURL
+	scope := "read:user user:email"
+
+	authURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=%s&state=%s",
+		url.QueryEscape(githubClientID),
+		url.QueryEscape(cb),
+		url.QueryEscape(scope),
+		url.QueryEscape(state),
+	)
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// handleAuthGitHubCallback godoc
+// @Summary GitHub OAuth 回调
+// @Tags auth
+// @Produce json
+// @Success 302 {string} string "登录成功跳转"
+// @Failure 400 {string} string "state 或 code 无效"
+// @Failure 502 {string} string "GitHub 认证失败"
+// @Router /auth/github/callback [get]
+func handleAuthGitHubCallback(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	state := r.URL.Query().Get("state")
+	code := r.URL.Query().Get("code")
+	if state == "" || code == "" || !validateOAuthState(state) {
+		http.Error(w, "state 或 code 无效", http.StatusBadRequest)
+		return
+	}
+
+	accessToken, err := exchangeGithubCode(code)
+	if err != nil {
+		log.Printf("GitHub code 交换失败: %v", err)
+		http.Error(w, "GitHub 认证失败", http.StatusBadGateway)
+		return
+	}
+
+	ghUser, err := fetchGithubUser(accessToken)
+	if err != nil {
+		log.Printf("GitHub 用户信息获取失败: %v", err)
+		http.Error(w, "GitHub 用户信息获取失败", http.StatusBadGateway)
+		return
+	}
+
+	userID, err := data.database.SaveOrUpdateUser(&User{
+		GithubID:  fmt.Sprintf("%d", ghUser.ID),
+		Login:     ghUser.Login,
+		Name:      ghUser.Name,
+		AvatarURL: ghUser.AvatarURL,
+		Email:     ghUser.Email,
+	})
+	if err != nil {
+		log.Printf("保存用户失败: %v", err)
+		http.Error(w, "用户保存失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 如果用户没有配置，则初始化
+	if existingConfig, _ := data.database.GetUserConfig(userID); existingConfig == "" {
+		_ = data.database.UpsertUserConfig(userID, "{}")
+	}
+
+	sessionToken := generateRandomHex(32)
+	expires := time.Now().Add(sessionTTL)
+	if err := data.database.CreateSession(userID, sessionToken, expires); err != nil {
+		log.Printf("创建会话失败: %v", err)
+		http.Error(w, "创建会话失败", http.StatusInternalServerError)
+		return
+	}
+
+	setSessionCookie(w, sessionToken, expires)
+	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// handleAuthMe godoc
+// @Summary 获取当前登录用户
+// @Tags auth
+// @Produce json
+// @Success 200 {object} AuthUser
+// @Failure 401 {string} string "未登录"
+// @Failure 503 {string} string "数据库未初始化"
+// @Router /auth/me [get]
+func handleAuthMe(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	user, err := getSessionUser(r)
+	if err != nil || user == nil {
+		http.Error(w, "未登录", http.StatusUnauthorized)
+		return
+	}
+
+	var cfg interface{}
+	if configStr, _ := data.database.GetUserConfig(user.ID); configStr != "" {
+		_ = json.Unmarshal([]byte(configStr), &cfg)
+	}
+
+	resp := AuthUser{
+		ID:        user.ID,
+		Login:     user.Login,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+		Email:     user.Email,
+		Config:    cfg,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// handleAuthLogout godoc
+// @Summary 登出
+// @Tags auth
+// @Produce json
+// @Success 204 {string} string "退出成功"
+// @Router /auth/logout [post]
+func handleAuthLogout(w http.ResponseWriter, r *http.Request) {
+	if data.database != nil {
+		if cookie, err := r.Cookie(sessionCookieName); err == nil && cookie.Value != "" {
+			_ = data.database.DeleteSession(cookie.Value)
+		}
+	}
+	clearSessionCookie(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// exchangeGithubCode 用 code 换取 access token
+func exchangeGithubCode(code string) (string, error) {
+	values := url.Values{}
+	values.Set("client_id", githubClientID)
+	values.Set("client_secret", githubClientSecret)
+	values.Set("code", code)
+	values.Set("redirect_uri", githubCallbackURL)
+
+	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", strings.NewReader(values.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		Scope       string `json:"scope"`
+		Error       string `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	if result.AccessToken == "" {
+		return "", fmt.Errorf("获取access_token失败: %s", result.Error)
+	}
+	return result.AccessToken, nil
+}
+
+// GithubUser GitHub返回的用户信息
+type GithubUser struct {
+	ID        int64  `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+// fetchGithubUser 获取 GitHub 用户信息
+func fetchGithubUser(token string) (*GithubUser, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var user GithubUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	// 如果邮箱缺失，尝试获取邮箱列表
+	if user.Email == "" {
+		reqEmail, _ := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+		reqEmail.Header.Set("Authorization", "Bearer "+token)
+		reqEmail.Header.Set("Accept", "application/json")
+		if respEmail, err := http.DefaultClient.Do(reqEmail); err == nil {
+			defer respEmail.Body.Close()
+			var emails []struct {
+				Email    string `json:"email"`
+				Primary  bool   `json:"primary"`
+				Verified bool   `json:"verified"`
+			}
+			if err := json.NewDecoder(respEmail.Body).Decode(&emails); err == nil {
+				for _, e := range emails {
+					if e.Primary && e.Verified && e.Email != "" {
+						user.Email = e.Email
+						break
+					}
+				}
+				if user.Email == "" && len(emails) > 0 {
+					user.Email = emails[0].Email
+				}
+			}
+		}
+	}
+
+	return &user, nil
+}
+
+// handleListDomainBindings godoc
+// @Summary 列出域名绑定
+// @Tags visitor
+// @Produce json
+// @Success 200 {array} DomainBinding
+// @Failure 401 {string} string "需要登录"
+// @Failure 503 {string} string "数据库未初始化"
+// @Router /visitor/bindings [get]
+func handleListDomainBindings(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	if user, _ := getSessionUser(r); user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
+
+	bindings, err := data.database.ListDomainBindings()
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(bindings)
+}
+
+// handleUpsertDomainBinding godoc
+// @Summary 新增或更新域名绑定
+// @Tags visitor
+// @Accept json
+// @Produce json
+// @Param binding body DomainBinding true "域名绑定"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "参数错误"
+// @Failure 401 {string} string "需要登录"
+// @Failure 503 {string} string "数据库未初始化"
+// @Router /visitor/bindings [post]
+func handleUpsertDomainBinding(w http.ResponseWriter, r *http.Request) {
+	if data.database == nil {
+		http.Error(w, "数据库未初始化", http.StatusServiceUnavailable)
+		return
+	}
+
+	if user, _ := getSessionUser(r); user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
+
+	var payload DomainBinding
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	payload.Domain = strings.ToLower(strings.TrimSpace(payload.Domain))
+	payload.ProjectKey = strings.TrimSpace(payload.ProjectKey)
+
+	if payload.Domain == "" || payload.ProjectKey == "" {
+		http.Error(w, "domain 和 project_key 不能为空", http.StatusBadRequest)
+		return
+	}
+
+	if err := data.database.UpsertDomainBinding(payload); err != nil {
+		http.Error(w, "保存域名绑定失败", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"message": "ok",
+	})
+}
+
+// handleReloadConfig godoc
+// @Summary 配置热重载
+// @Tags config
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{} "重载失败"
+// @Router /reload-config [post]
 func handleReloadConfig(w http.ResponseWriter, r *http.Request) {
 	log.Printf("收到配置重载请求")
 
@@ -1929,6 +2894,8 @@ func handleReloadConfig(w http.ResponseWriter, r *http.Request) {
 			"data_interval":    serverConfig.DataInterval,
 			"enable_cache":     serverConfig.EnableCache,
 			"enable_websocket": serverConfig.EnableWebSocket,
+			"database_driver":  serverConfig.DatabaseDriver,
+			"database_path":    serverConfig.DatabasePath,
 		},
 	})
 }
@@ -1959,6 +2926,17 @@ func reloadServerConfig() error {
 	}
 
 	// 更新配置（只允许热重载的部分）
+	if strings.ToLower(fileConfig.DatabaseDriver) != strings.ToLower(serverConfig.DatabaseDriver) {
+		log.Printf("⚠️  数据库驱动变更需要重启服务器: %s -> %s", serverConfig.DatabaseDriver, fileConfig.DatabaseDriver)
+		return fmt.Errorf("数据库驱动变更需要重启服务器才能生效")
+	}
+	if len(fileConfig.DatabaseConns) > 0 {
+		if !reflect.DeepEqual(normalizeDBConns(serverConfig.DatabaseConns), normalizeDBConns(fileConfig.DatabaseConns)) {
+			log.Printf("⚠️  数据库连接列表变更需要重启服务器")
+			return fmt.Errorf("数据库连接列表变更需要重启服务器才能生效")
+		}
+	}
+
 	if fileConfig.Host != "" && fileConfig.Host != serverConfig.Host {
 		log.Printf("⚠️  主机地址变更需要重启服务器: %s -> %s", serverConfig.Host, fileConfig.Host)
 		return fmt.Errorf("主机地址变更需要重启服务器才能生效")
@@ -1970,7 +2948,9 @@ func reloadServerConfig() error {
 	}
 
 	// 可以热重载的配置项
-	if fileConfig.RequireAuth != serverConfig.RequireAuth {
+	if !fileConfig.RequireAuth && serverConfig.RequireAuth {
+		log.Printf("⚠️ 认证已强制开启，忽略配置中的禁用请求")
+	} else if fileConfig.RequireAuth != serverConfig.RequireAuth {
 		log.Printf("🔄 认证设置更新: %v -> %v", serverConfig.RequireAuth, fileConfig.RequireAuth)
 		serverConfig.RequireAuth = fileConfig.RequireAuth
 	}
@@ -2051,11 +3031,23 @@ func reloadServerConfig() error {
 		serverConfig.ServerKey = fileConfig.ServerKey
 	}
 
+	// 数据库路径可热更新，但仍需相应迁移/重建
+	if fileConfig.DatabasePath != "" && fileConfig.DatabasePath != serverConfig.DatabasePath {
+		log.Printf("🔄 数据库路径已更新 (当前进程仍使用旧连接，重启后生效): %s -> %s", serverConfig.DatabasePath, fileConfig.DatabasePath)
+		serverConfig.DatabasePath = fileConfig.DatabasePath
+	}
+
 	log.Printf("✅ 配置热重载完成")
 	return nil
 }
 
-// handleCacheStats 获取缓存统计信息
+// handleCacheStats godoc
+// @Summary 获取缓存统计信息
+// @Tags cache
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {string} string "缓存未启用"
+// @Router /cache-stats [get]
 func handleCacheStats(w http.ResponseWriter, r *http.Request) {
 	if !serverConfig.EnableCache {
 		http.Error(w, "缓存未启用", http.StatusServiceUnavailable)
@@ -2146,6 +3138,20 @@ func isValidProjectKey(key string) bool {
 	return false
 }
 
+// getServerBySessionID 仅按 sessionID 精确查找
+func getServerBySessionID(sessionID string) *ServerInfo {
+	data.mu.RLock()
+	defer data.mu.RUnlock()
+	return data.servers[sessionID]
+}
+
+// reverseHistory 将历史记录按时间升序排列（数据库返回为倒序）
+func reverseHistory(history []*SystemInfo) {
+	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+		history[i], history[j] = history[j], history[i]
+	}
+}
+
 // 已移除generateAccessToken函数，只保留AccessKey相关功能
 
 // generateUUID 生成UUID字符串
@@ -2219,6 +3225,17 @@ func validateDualKey(serverKey, projectKey string) bool {
 	return false
 }
 
+// writeTrackingPixel 返回1x1透明GIF作为埋点响应
+func writeTrackingPixel(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "image/gif")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(trackingPixel); err != nil {
+		log.Printf("返回追踪像素失败: %v", err)
+	}
+}
+
 // 已移除getProjectKeyByToken函数，只保留AccessKey相关功能
 
 // loadServerConfig 加载服务器配置文件
@@ -2268,7 +3285,22 @@ func loadServerConfig() {
 	if fileConfig.Port != "" {
 		serverConfig.Port = fileConfig.Port
 	}
-	serverConfig.RequireAuth = fileConfig.RequireAuth
+	// 强制启用认证，忽略配置文件中的禁用选项
+	if !fileConfig.RequireAuth && serverConfig.RequireAuth {
+		log.Printf("⚠️ 配置文件试图关闭认证，已被强制忽略，认证保持开启")
+	} else {
+		serverConfig.RequireAuth = fileConfig.RequireAuth
+	}
+	if fileConfig.DatabaseDriver != "" {
+		serverConfig.DatabaseDriver = strings.ToLower(fileConfig.DatabaseDriver)
+	}
+	if fileConfig.DatabasePath != "" {
+		serverConfig.DatabasePath = fileConfig.DatabasePath
+	}
+	if len(fileConfig.DatabaseConns) > 0 {
+		// 直接覆盖列表，默认使用第一个
+		serverConfig.DatabaseConns = fileConfig.DatabaseConns
+	}
 	if fileConfig.DataLimit > 0 {
 		serverConfig.DataLimit = fileConfig.DataLimit
 	}
@@ -2309,6 +3341,64 @@ func saveServerConfig() {
 	}
 }
 
+// initDBStore 根据配置初始化数据库存储，预留未来多驱动扩展
+func initDBStore() (DBStore, error) {
+	driver, path := getActiveDBConfig()
+	switch strings.ToLower(driver) {
+	case "", "sqlite", "sqlite3":
+		return NewDatabase(path)
+	case "postgres", "postgresql", "pg", "psql":
+		return NewPostgresDatabase(path)
+	case "mysql", "mariadb":
+		return nil, fmt.Errorf("数据库驱动 mysql/mariadb 尚未实现，当前仅支持 sqlite")
+	default:
+		return nil, fmt.Errorf("不支持的数据库驱动: %s", driver)
+	}
+}
+
+// getActiveDBConfig 选择当前使用的数据库配置（优先列表第一个）
+func getActiveDBConfig() (driver string, path string) {
+	if len(serverConfig.DatabaseConns) > 0 {
+		first := serverConfig.DatabaseConns[0]
+		driver = first.Driver
+		path = first.Path
+	}
+	if driver == "" {
+		driver = serverConfig.DatabaseDriver
+	}
+	if path == "" {
+		path = serverConfig.DatabasePath
+	}
+	if driver == "" {
+		driver = "sqlite"
+	}
+	if path == "" {
+		path = "./data/serverstatus.db"
+	}
+	return strings.ToLower(driver), path
+}
+
+// normalizeDBConns 规范化数据库连接配置用于比较
+func normalizeDBConns(conns []DBConnConfig) []DBConnConfig {
+	result := make([]DBConnConfig, 0, len(conns))
+	for _, c := range conns {
+		result = append(result, DBConnConfig{
+			Driver: strings.ToLower(c.Driver),
+			Path:   c.Path,
+		})
+	}
+	return result
+}
+
+func isSupportedDriver(driver string) bool {
+	switch strings.ToLower(driver) {
+	case "", "sqlite", "sqlite3", "postgres", "postgresql", "pg", "psql", "mysql", "mariadb":
+		return true
+	default:
+		return false
+	}
+}
+
 // getProjectKeyFromAccessKey 从访问密钥获取项目密钥
 func getProjectKeyFromAccessKey(accessKey string) string {
 	// 从数据库查询访问密钥对应的项目密钥
@@ -2320,7 +3410,14 @@ func getProjectKeyFromAccessKey(accessKey string) string {
 	return projectKey
 }
 
-// handleExportServersCSV 导出服务器列表为CSV
+// handleExportServersCSV godoc
+// @Summary 导出服务器列表为CSV
+// @Tags export
+// @Produce text/csv
+// @Param project_key query string false "项目密钥"
+// @Param access_key query string false "访问密钥（用于换取项目密钥）"
+// @Success 200 {file} file
+// @Router /export/servers [get]
 func handleExportServersCSV(w http.ResponseWriter, r *http.Request) {
 	// 验证请求参数
 	projectKey := r.URL.Query().Get("project_key")
@@ -2413,115 +3510,189 @@ func handleExportServersCSV(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[数据导出] 导出服务器列表CSV，项目: %s, 记录数: %d", projectKey, len(servers))
 }
 
-// handleExportHistoryCSV 导出历史数据为CSV
+// handleExportHistoryCSV godoc
+// @Summary 导出服务器历史数据为CSV
+// @Tags export
+// @Produce text/csv
+// @Param session_id query string true "SessionID"
+// @Param project_key query string false "项目密钥"
+// @Param limit query int false "最多返回条数，默认DataLimit"
+// @Param hours query int false "回溯小时数，默认24"
+// @Success 200 {file} file
+// @Failure 400 {string} string "缺少session_id"
+// @Router /export/history [get]
 func handleExportHistoryCSV(w http.ResponseWriter, r *http.Request) {
-	// 验证请求参数
-	hostname := r.URL.Query().Get("hostname")
-	if hostname == "" {
-		http.Error(w, "需要提供hostname参数", http.StatusBadRequest)
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
+		return
+	}
+
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "需要提供session_id参数", http.StatusBadRequest)
 		return
 	}
 
 	projectKey := r.URL.Query().Get("project_key")
-	if projectKey == "" {
-		projectKey = "public"
-	}
+	// 默认允许 public/缺省
 
-	// 解析时间范围参数
-	_ = 1000 // 默认导出最近1000条记录 (占位符)
+	limit := serverConfig.DataLimit
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 10000 {
-			_ = l
+			limit = l
 		}
 	}
 
+	// 可选时间范围
+	to := time.Now()
+	from := to.Add(-24 * time.Hour)
+	if hoursStr := r.URL.Query().Get("hours"); hoursStr != "" {
+		if h, err := strconv.Atoi(hoursStr); err == nil && h > 0 && h <= 24*30 {
+			from = to.Add(-time.Duration(h) * time.Hour)
+		}
+	}
+
+	server := getServerBySessionID(sessionID)
+	if server == nil {
+		http.Error(w, "服务器不存在", http.StatusNotFound)
+		return
+	}
+	if server.OwnerUserID > 0 && server.OwnerUserID != user.ID {
+		http.Error(w, "无权访问该服务器", http.StatusForbidden)
+		return
+	}
+
+	// 从数据库获取历史数据
+	history, err := data.database.GetHistoryByTimeRange(sessionID, projectKey, from, to, limit)
+	if err != nil {
+		log.Printf("获取历史数据失败: %v", err)
+		http.Error(w, "获取历史数据失败", http.StatusInternalServerError)
+		return
+	}
+	// 按时间升序
+	reverseHistory(history)
+
 	// 设置响应头
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=history_%s_%s.csv", hostname, time.Now().Format("20060102_150405")))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=history_%s_%s.csv", sessionID, time.Now().Format("20060102_150405")))
 
-	// 创建CSV写入器
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	// 写入表头
 	headers := []string{
-		"时间戳", "主机名", "项目密钥",
-		"说明", "状态", "消息",
+		"时间戳", "主机名", "SessionID", "项目密钥",
+		"CPU使用率(%)", "内存使用率(%)", "磁盘使用率(%)",
+		"网络发送字节", "网络接收字节",
+		"CPU温度", "GPU温度",
 	}
 	if err := writer.Write(headers); err != nil {
 		http.Error(w, "写入CSV失败", http.StatusInternalServerError)
 		return
 	}
 
-	// 写入示例数据（暂时作为占位符）
-	row := []string{
-		time.Now().Format("2006-01-02 15:04:05"),
-		hostname,
-		projectKey,
-		"历史数据导出功能正在开发中",
-		"开发中",
-		"请等待后续版本更新",
+	for _, item := range history {
+		row := []string{
+			item.Timestamp.Format("2006-01-02 15:04:05"),
+			item.Hostname,
+			item.SessionID,
+			item.ProjectKey,
+			fmt.Sprintf("%.2f", item.CPU.UsagePercent),
+			fmt.Sprintf("%.2f", item.Memory.UsagePercent),
+			fmt.Sprintf("%.2f", item.Disk.UsagePercent),
+			fmt.Sprintf("%d", item.Network.BytesSent),
+			fmt.Sprintf("%d", item.Network.BytesRecv),
+			fmt.Sprintf("%.1f", item.Temperature.CPUTemp),
+			fmt.Sprintf("%.1f", item.Temperature.GPUTemp),
+		}
+		if err := writer.Write(row); err != nil {
+			http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	if err := writer.Write(row); err != nil {
-		http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("[数据导出] 导出历史数据CSV，主机: %s, 项目: %s (占位符)", hostname, projectKey)
+	log.Printf("[数据导出] 导出历史数据CSV，Session: %s, 条数: %d", sessionID, len(history))
 }
 
-// handleExportUserResourcesCSV 导出用户资源使用数据为CSV
+// handleExportUserResourcesCSV godoc
+// @Summary 导出指定服务器的用户资源为CSV
+// @Tags export
+// @Produce text/csv
+// @Param session_id query string true "SessionID"
+// @Param project_key query string false "项目密钥"
+// @Success 200 {file} file
+// @Failure 400 {string} string "缺少session_id"
+// @Router /export/user-resources [get]
 func handleExportUserResourcesCSV(w http.ResponseWriter, r *http.Request) {
-	// 验证请求参数
-	hostname := r.URL.Query().Get("hostname")
-	if hostname == "" {
-		http.Error(w, "需要提供hostname参数", http.StatusBadRequest)
+	user, _ := getSessionUser(r)
+	if user == nil {
+		http.Error(w, "需要登录", http.StatusUnauthorized)
 		return
 	}
 
-	projectKey := r.URL.Query().Get("project_key")
-	if projectKey == "" {
-		projectKey = "public"
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "需要提供session_id参数", http.StatusBadRequest)
+		return
+	}
+
+	// 使用当前最新的数据导出
+	server := getServerBySessionID(sessionID)
+	if server == nil || server.Latest == nil || len(server.Latest.UserResources) == 0 {
+		http.Error(w, "没有用户资源数据", http.StatusNotFound)
+		return
+	}
+
+	if server.OwnerUserID > 0 && server.OwnerUserID != user.ID {
+		http.Error(w, "无权访问该服务器", http.StatusForbidden)
+		return
 	}
 
 	// 设置响应头
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=user_resources_%s_%s.csv", hostname, time.Now().Format("20060102_150405")))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=user_resources_%s_%s.csv", sessionID, time.Now().Format("20060102_150405")))
 
-	// 创建CSV写入器
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	// 写入表头
 	headers := []string{
-		"时间戳", "主机名", "项目密钥",
-		"说明", "状态", "消息",
+		"时间戳", "主机名", "SessionID", "用户", "UID",
+		"进程数", "CPU使用率(%)", "内存(MB)", "内存占比(%)",
 	}
 	if err := writer.Write(headers); err != nil {
 		http.Error(w, "写入CSV失败", http.StatusInternalServerError)
 		return
 	}
 
-	// 写入示例数据（暂时作为占位符）
-	row := []string{
-		time.Now().Format("2006-01-02 15:04:05"),
-		hostname,
-		projectKey,
-		"用户资源导出功能正在开发中",
-		"开发中",
-		"请等待后续版本更新",
+	for _, ur := range server.Latest.UserResources {
+		row := []string{
+			server.Latest.Timestamp.Format("2006-01-02 15:04:05"),
+			server.Latest.Hostname,
+			server.Latest.SessionID,
+			ur.Username,
+			fmt.Sprintf("%d", ur.UID),
+			fmt.Sprintf("%d", ur.ProcessCount),
+			fmt.Sprintf("%.2f", ur.CPUPercent),
+			fmt.Sprintf("%d", ur.MemoryMB),
+			fmt.Sprintf("%.2f", ur.MemoryPercent),
+		}
+		if err := writer.Write(row); err != nil {
+			http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	if err := writer.Write(row); err != nil {
-		http.Error(w, "写入CSV数据失败", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("[数据导出] 导出用户资源CSV，主机: %s, 项目: %s (占位符)", hostname, projectKey)
+	log.Printf("[数据导出] 导出用户资源CSV，Session: %s, 条数: %d", sessionID, len(server.Latest.UserResources))
 }
 
-// handleDeployAgentCommand 返回一键运行客户端的命令与.env内容
+// handleDeployAgentCommand godoc
+// @Summary 获取一键运行客户端的命令与示例.env
+// @Tags deploy
+// @Produce json
+// @Param base_url query string false "数据上报基址，默认 https://serverstatus.ltd"
+// @Param user_resources query bool false "是否开启用户资源采集，默认false"
+// @Success 200 {object} map[string]interface{}
+// @Router /deploy/agent-command [get]
 func handleDeployAgentCommand(w http.ResponseWriter, r *http.Request) {
 	baseURL := r.URL.Query().Get("base_url")
 	if baseURL == "" {
@@ -2623,6 +3794,8 @@ func printServerUsage() {
 	fmt.Println("        Redis服务器密码 (默认: 无)")
 	fmt.Println("  -redis-db")
 	fmt.Println("        Redis数据库编号 (默认: 0)")
+	fmt.Println("  -db-driver string")
+	fmt.Println("        数据库驱动 (sqlite; 未来: postgres/mysql)")
 	fmt.Println("  -help")
 	fmt.Println("        显示此帮助信息")
 	fmt.Println()
@@ -2668,11 +3841,9 @@ func printServerUsage() {
 	fmt.Println("  POST /api/data       - 接收监控数据上报")
 	fmt.Println("  POST /api/register-session - 注册新的session获取UUID")
 	fmt.Println("  GET  /api/servers    - 获取服务器列表")
-	fmt.Println("  GET  /api/server/{hostname} - 获取特定服务器详情")
-	// 已移除项目密钥和访问令牌相关API端点
+	fmt.Println("  GET  /api/server/{sessionID} - 获取特定服务器详情")
 	fmt.Println("  POST /api/generate-access-key - 生成访问密钥 (双密钥认证)")
 	fmt.Println("  GET  /api/access/{accessKey}/servers - 根据访问密钥获取服务器列表")
-	fmt.Println("  GET  /api/access/{accessKey}/server/{hostname} - 根据访问密钥获取特定服务器")
 	fmt.Println("  GET  /api/access/{accessKey}/server-by-session/{sessionID} - 根据访问密钥和sessionID获取特定服务器")
 	fmt.Println("  GET  /api/ws-stats - 获取WebSocket连接统计信息")
 	fmt.Println("  GET  /api/cache-stats - 获取缓存统计信息")
